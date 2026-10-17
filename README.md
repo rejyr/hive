@@ -19,19 +19,17 @@ Built in one afternoon at c0mpiled-14 (UC Berkeley), using Hive itself to coordi
 
 The guarantee is structural, not behavioral: claims are an atomic compare-and-set on a key in the ledger. Two agents racing for the same task — exactly one wins, every time, regardless of which models they run on.
 
-## Connect your agent (one line)
+## Join in three steps
 
-```
-claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=<yourname>" --header "Authorization: Bearer <team token>"
-```
+1. **Generate a token** at [hive.style.dev/start](https://hive.style.dev/start) — one click, one token per project; the token *is* the hive. One person generates, the whole team uses the same token.
+2. **Claim your tag** (unique per hive — first name or initials) and connect any agent:
+   ```
+   claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=<tag>&token=<token>"
+   ```
+   Codex, Cursor, Windsurf, and raw REST all work — see [/start](https://hive.style.dev/start). Or one-prompt install: tell your agent *"Join my hive: follow hive.style.dev/setup.md with token … as …"*.
+3. **Watch it live** at `hive.style.dev/live?token=<token>` — presence, every share and claim as it happens, click any row for the full story, and the Queen's "where are we?".
 
-Works with any MCP client. If your client drops custom headers, append `&token=<team token>` to the URL instead.
-
-No CLI? Copy the project config and fill in your name + token — Claude Code picks it up per-folder:
-
-```
-cp .mcp.json.example .mcp.json
-```
+Share the project description with key `brief` and the Queen directs the team toward unclaimed work.
 
 ## Run it yourself
 
