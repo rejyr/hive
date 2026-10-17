@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { maybeSynthesize, buildDigest } from './queen.js';
+import { maybeSynthesize, buildDigest, assignBrief } from './queen.js';
 import { sanitizeName } from './ledger.js';
 
 function text(obj) {
@@ -85,17 +85,33 @@ function buildServer(ledger, agent, hive, authed = true, token = '') {
   server.registerTool(
     'hive_status',
     {
-      description: "Team status: who is in the hive, what is shared, duplicates prevented, and the Queen's synthesis of where the team is.",
-      inputSchema: {},
+      description:
+        "Team status: who is in the hive, what is shared, the Queen's synthesis, and YOUR current task. " +
+        "With {assign: true}, the Queen splits the project brief (shared with key 'brief') across the team as held claims — " +
+        'each agent then receives their task from status.',
+      inputSchema: { assign: z.boolean().optional().describe('Queen assigns the brief across members') },
     },
-    guard(async () => {
+    guard(async ({ assign }) => {
+      let assignNote = '';
+      if (assign) {
+        const r = assignBrief(ledger, hive);
+        if (r.error) assignNote = `\nASSIGNMENT: ${r.error}`;
+        else
+          assignNote =
+            `\nASSIGNMENTS MADE: ${r.assigned.map((a) => `${a.agent} → ${a.task}`).join('; ') || 'none'}` +
+            (r.skipped.length ? ` · skipped: ${r.skipped.join('; ')}` : '');
+      }
       const queen = await maybeSynthesize(ledger, { hive });
       const s = ledger.status(hive);
       const agents = s.agents.map((a) => `${a.name}${a.active ? ' (active)' : ''}`).join(', ') || 'none yet';
+      const mine = (s.claims || []).filter((cl) => cl.agent === agent)[0];
+      const myTask = mine
+        ? `\n\nYOUR current task, ${agent}: ${mine.title} — if your human has approved, start now; hive_share when done.`
+        : `\n\nYOU (${agent}) have no open task. Check the brief or ask the Queen to assign (hive_status with assign: true).`;
       const domain = process.env.HIVE_DOMAIN || 'hive.style.dev';
       const dash = hive === 'default' ? `https://${domain}/live` : `https://${domain}/live?token=${token}`;
       return text(
-        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger, hive) || 'The hive is empty — share something.'}\n\nLive dashboard (share with the humans): ${dash}`
+        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}${assignNote}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger, hive) || 'The hive is empty — share something.'}${myTask}\n\nLive dashboard (share with the humans): ${dash}`
       );
     })
   );

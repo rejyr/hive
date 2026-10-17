@@ -37,6 +37,48 @@ export function buildDigest(ledger, hive = 'default') {
   return parts.join(' ');
 }
 
+// The Queen splits the project brief (memory key 'brief') into tasks and holds a
+// claim for each member, round-robin. Agents learn their task from hive_status.
+export function assignBrief(ledger, hive = 'default') {
+  const brief = ledger.db
+    .prepare("SELECT * FROM memories WHERE hive = ? AND key LIKE 'brief%' ORDER BY ts DESC LIMIT 1")
+    .get(hive);
+  if (!brief) return { error: "No brief yet — share the project outline with key 'brief' first." };
+  const members = ledger.members(hive);
+  if (!members.length) return { error: 'No members have joined this hive yet (claim tags on /start).' };
+
+  let tasks = String(brief.body || brief.title)
+    .split('\n')
+    .map((l) => l.replace(/^\s*[-*•\d.)]+\s*/, '').trim())
+    .filter((l) => l.length > 3);
+  if (tasks.length < 2) {
+    tasks = String(brief.body || brief.title).split(/;|(?<=\.)\s+/).map((t) => t.trim()).filter((t) => t.length > 3);
+  }
+  tasks = tasks.slice(0, 12);
+
+  const assigned = [];
+  const skipped = [];
+  tasks.forEach((task, i) => {
+    const slug = task.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    const agent = members[i % members.length];
+    const r = ledger.claim({ hive, agent, key: `task:${slug}`, title: task });
+    if (r.ok) assigned.push({ agent, task });
+    else skipped.push(`${task} (already with ${r.claimed_by})`);
+  });
+
+  const summary = assigned.map((a) => `${a.agent} → ${a.task}`).join('; ');
+  if (assigned.length) {
+    ledger.addEvent({
+      hive,
+      agent: 'queen',
+      verb: 'QUEEN',
+      title: 'Assignments are out',
+      body: `${summary}. Each agent: ask the hive for status to receive your task, get your human's go-ahead, then start.`,
+    });
+  }
+  return { assigned, skipped };
+}
+
 // Returns the latest QUEEN event, synthesizing a fresh one when there is news.
 // Never throws — Queen failures degrade to the last good synthesis, then the digest.
 export async function maybeSynthesize(ledger, { force = false, hive = 'default' } = {}) {

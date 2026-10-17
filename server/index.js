@@ -8,7 +8,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { WebSocketServer } from 'ws';
 import { openLedger, sanitizeName } from './ledger.js';
 import { createMcpHandler } from './mcp.js';
-import { maybeSynthesize } from './queen.js';
+import { maybeSynthesize, assignBrief } from './queen.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const ledger = openLedger();
@@ -92,6 +92,13 @@ app.post('/api/claim', async (c) => {
   if (!hive) return c.json({ error: 'valid token required' }, 401);
   if (!key || !title) return c.json({ error: 'key and title required' }, 400);
   return c.json(ledger.claim({ hive, agent, key, title }));
+});
+// The Queen splits the brief across members as held claims.
+app.post('/api/assign', async (c) => {
+  const { hive: bodyHive } = await c.req.json().catch(() => ({}));
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
+  return c.json(assignBrief(ledger, hive));
 });
 app.post('/api/queen', async (c) => {
   const { hive: bodyHive } = await c.req.json().catch(() => ({}));
