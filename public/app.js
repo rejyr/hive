@@ -522,6 +522,16 @@
       if (MOCK) {
         addEventRow(makeMockEvent('QUEEN', Date.now(), 'queen'), true);
         renderCounters();
+        return;
+      }
+      // With a token we can ask for a fresh synthesis; the new QUEEN event
+      // arrives over the WS broadcast. Without one, just refetch.
+      if (TOKEN) {
+        fetch('/api/queen', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: 'Bearer ' + TOKEN },
+          body: '{}'
+        }).then(function () { backfill(); }).catch(function () {});
       } else {
         backfill();
       }

@@ -45,11 +45,14 @@ export async function maybeSynthesize(ledger, { force = false, hive = 'default' 
   const model = process.env.QUEEN_MODEL || 'glm-5.3-flash';
   const latest = ledger.latestQueen(hive);
   if (!base || !key) {
-    // No model configured: on an explicit ask, publish the deterministic digest
-    // so the dashboard panel and hive_status still answer "where are we?".
-    if (!force) return latest;
+    // No model configured: publish a fresh deterministic digest whenever asked and
+    // something changed, so "where are we?" from any agent updates every dashboard.
+    const evs = ledger.recentEvents(50, hive);
+    const changed = evs.some((e) => (!latest || e.id > latest.id) && e.verb !== 'RECALL' && e.verb !== 'QUEEN');
+    if (latest && !changed && !force) return latest;
     const text = buildDigest(ledger, hive);
     if (!text) return latest;
+    if (latest && text === latest.body) return latest; // nothing new to say
     return ledger.addEvent({ hive, agent: 'queen', verb: 'QUEEN', title: 'Where are we?', body: text });
   }
 

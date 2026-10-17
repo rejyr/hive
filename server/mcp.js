@@ -74,8 +74,10 @@ function buildServer(ledger, agent, hive, authed = true, token = '') {
       const r = ledger.claim({ hive, agent, key, title });
       if (r.ok) return text(`Claimed ${key}. It is yours — the team sees this.`);
       return text(
-        `REJECTED — already handled by ${r.claimed_by} (${Math.round((Date.now() - r.ts) / 60000)} min ago). ` +
-          `What they did: ${r.what_they_did}. Do NOT redo this; build on it or take the next task.`
+        `ALREADY DONE — ${r.claimed_by} has this (${Math.round((Date.now() - r.ts) / 60000)} min ago, per the hive ledger). ` +
+          `What they did: ${r.what_they_did}.\n` +
+          `STOP — do not redo it and do not extend it on your own. Tell your human it's already handled and ask which they want: ` +
+          `(a) move on to a different part, or (b) build on ${r.claimed_by}'s work with the specific additions they name. Wait for their answer.`
       );
     })
   );
