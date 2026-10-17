@@ -4,12 +4,13 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { maybeSynthesize, buildDigest } from './queen.js';
+import { sanitizeName } from './ledger.js';
 
 function text(obj) {
   return { content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2) }] };
 }
 
-function buildServer(ledger, agent) {
+function buildServer(ledger, agent, hive) {
   const server = new McpServer({ name: 'hive', version: '0.1.0' });
 
   server.registerTool(
@@ -24,7 +25,7 @@ function buildServer(ledger, agent) {
         key: z.string().optional().describe('Stable identity key, e.g. decision:api-schema'),
       },
     },
-    async ({ title, body, key }) => text(ledger.share({ agent, title, body, key }))
+    async ({ title, body, key }) => text(ledger.share({ hive, agent, title, body, key }))
   );
 
   server.registerTool(
@@ -35,7 +36,7 @@ function buildServer(ledger, agent) {
       inputSchema: { query: z.string().describe('What you need to know, e.g. "api schema" or "deploy"') },
     },
     async ({ query }) => {
-      const hits = ledger.recall({ agent, query });
+      const hits = ledger.recall({ hive, agent, query });
       if (!hits.length) return text('No shared context matches. The team has not shared anything about this yet.');
       return text(
         hits
@@ -57,7 +58,7 @@ function buildServer(ledger, agent) {
       },
     },
     async ({ key, title }) => {
-      const r = ledger.claim({ agent, key, title });
+      const r = ledger.claim({ hive, agent, key, title });
       if (r.ok) return text(`Claimed ${key}. It is yours — the team sees this.`);
       return text(
         `REJECTED — already handled by ${r.claimed_by} (${Math.round((Date.now() - r.ts) / 60000)} min ago). ` +
@@ -73,11 +74,11 @@ function buildServer(ledger, agent) {
       inputSchema: {},
     },
     async () => {
-      const queen = await maybeSynthesize(ledger);
-      const s = ledger.status();
+      const queen = await maybeSynthesize(ledger, { hive });
+      const s = ledger.status(hive);
       const agents = s.agents.map((a) => `${a.name}${a.active ? ' (active)' : ''}`).join(', ') || 'none yet';
       return text(
-        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger) || 'The hive is empty — share something.'}`
+        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger, hive) || 'The hive is empty — share something.'}`
       );
     }
   );
@@ -117,7 +118,8 @@ export function createMcpHandler(ledger) {
     let transport = sessionId ? transports.get(sessionId) : undefined;
 
     if (!transport) {
-      const agent = (url.searchParams.get('agent') || 'anonymous').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'anonymous';
+      const agent = sanitizeName(url.searchParams.get('agent'), 'anonymous');
+      const hive = sanitizeName(url.searchParams.get('hive'), 'default');
       if (body && isInitializeRequest(body)) {
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
@@ -144,7 +146,7 @@ export function createMcpHandler(ledger) {
       transport.onclose = () => {
         if (transport.sessionId) transports.delete(transport.sessionId);
       };
-      await buildServer(ledger, agent).connect(transport);
+      await buildServer(ledger, agent, hive).connect(transport);
     }
 
     await transport.handleRequest(req, res, body);

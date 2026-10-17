@@ -7,10 +7,12 @@ Clock reality (plan written 12:39pm): submission **4:30pm**. Film by **3:30pm**.
 Every ledger event, over WS and `/api/events`, is exactly:
 
 ```json
-{ "id": 1, "ts": 1760000000000, "agent": "vihaan", "verb": "SHARE|RECALL|CLAIM|DEDUPE|QUEEN", "key": "deploy:server", "title": "Server deployed to hive.style.dev", "body": "..." }
+{ "id": 1, "hive": "default", "ts": 1760000000000, "agent": "vihaan", "verb": "SHARE|RECALL|CLAIM|DEDUPE|QUEEN", "key": "deploy:server", "title": "Server deployed to hive.style.dev", "body": "..." }
 ```
 
-WS messages: `{"type":"event","event":{...}}` and `{"type":"counters","agents":3,"shared":42,"deduped":5}`. Change this shape only by editing this file first.
+WS messages: `{"type":"event","event":{...}}` and `{"type":"counters","hive":"default","agents":[...],"shared":42,"deduped":5}`. Change this shape only by editing this file first.
+
+**Hives (added mid-day):** every event/memory/claim is scoped to a `hive` (default `"default"`). Clients pick theirs with `&hive=<name>` on the MCP URL, `?hive=` on `/ws`, `/live`, and `/api/events`, and a `hive` field on REST POSTs. `POST /api/hives {name, repo}` (auth) links a repo; `GET /api/hives` lists spaces. Claims are atomic per `(hive, key)`.
 
 ## Parallel lanes (3 people / 3 Claude sessions)
 

@@ -5,10 +5,10 @@ const SYSTEM_PROMPT =
 
 // Deterministic synthesis straight from the ledger — the Queen's model-free voice.
 // Real data only: active agents, freshest share per agent, open claims, counters.
-export function buildDigest(ledger) {
-  const s = ledger.status();
+export function buildDigest(ledger, hive = 'default') {
+  const s = ledger.status(hive);
   // recentEvents returns oldest-first; reverse so "last shared" finds the newest
-  const events = ledger.recentEvents(50).filter((e) => e.verb !== 'QUEEN').reverse();
+  const events = ledger.recentEvents(50, hive).filter((e) => e.verb !== 'QUEEN').reverse();
   if (!events.length) return null;
   const mins = (ts) => Math.max(0, Math.round((Date.now() - ts) / 60000));
   const parts = [];
@@ -23,8 +23,8 @@ export function buildDigest(ledger) {
     if (last) parts.push(`${a.name} last shared: ${last.title} (${mins(last.ts)} min ago).`);
   }
   const claims = ledger.db
-    .prepare('SELECT * FROM claims ORDER BY ts DESC LIMIT 5')
-    .all()
+    .prepare('SELECT * FROM claims WHERE hive = ? ORDER BY ts DESC LIMIT 5')
+    .all(hive)
     .map((c) => `${c.title} (${c.agent})`);
   if (claims.length) parts.push(`In progress: ${claims.join('; ')}.`);
   return parts.join(' ');
@@ -32,21 +32,21 @@ export function buildDigest(ledger) {
 
 // Returns the latest QUEEN event, synthesizing a fresh one when there is news.
 // Never throws — Queen failures degrade to the last good synthesis, then the digest.
-export async function maybeSynthesize(ledger, { force = false } = {}) {
+export async function maybeSynthesize(ledger, { force = false, hive = 'default' } = {}) {
   const base = process.env.QUEEN_BASE_URL;
   const key = process.env.QUEEN_API_KEY;
   const model = process.env.QUEEN_MODEL || 'glm-5.3-flash';
-  const latest = ledger.latestQueen();
+  const latest = ledger.latestQueen(hive);
   if (!base || !key) {
     // No model configured: on an explicit ask, publish the deterministic digest
     // so the dashboard panel and hive_status still answer "where are we?".
     if (!force) return latest;
-    const text = buildDigest(ledger);
+    const text = buildDigest(ledger, hive);
     if (!text) return latest;
-    return ledger.addEvent({ agent: 'queen', verb: 'QUEEN', title: 'Where are we?', body: text });
+    return ledger.addEvent({ hive, agent: 'queen', verb: 'QUEEN', title: 'Where are we?', body: text });
   }
 
-  const events = ledger.recentEvents(50);
+  const events = ledger.recentEvents(50, hive);
   const news = events.some((e) => (!latest || e.id > latest.id) && e.verb !== 'RECALL' && e.verb !== 'QUEEN');
   if (!force && latest && (!news || Date.now() - latest.ts < 60_000)) return latest;
 
@@ -78,7 +78,7 @@ export async function maybeSynthesize(ledger, { force = false } = {}) {
     const data = await r.json();
     const text = data.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error('queen returned empty content');
-    return ledger.addEvent({ agent: 'queen', verb: 'QUEEN', title: 'Where are we?', body: text });
+    return ledger.addEvent({ hive, agent: 'queen', verb: 'QUEEN', title: 'Where are we?', body: text });
   } catch (err) {
     console.error('[queen]', err.message);
     return latest;

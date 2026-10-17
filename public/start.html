@@ -71,6 +71,42 @@
 
     <div class="setup-card">
       <div class="step-num">04</div>
+      <h3>One hive per project</h3>
+      <p>Add <code>&amp;hive=</code> to the URL and a new shared space exists — nothing to provision. Same team, separate memories per project.</p>
+      <div class="codeline">
+        <code>claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN&amp;hive=myproject"</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">Link the project's repo so it shows on the dashboard (<code>/live?hive=myproject</code>):</p>
+      <div class="codeline">
+        <code>curl -X POST https://hive.style.dev/api/hives -H "Authorization: Bearer TEAM_TOKEN" -H "content-type: application/json" -d '{"name":"myproject","repo":"https://github.com/you/myproject"}'</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">05</div>
+      <h3>Any agent, not just Claude</h3>
+      <p>Hive is a standard MCP server over HTTP — every client below joins the same shared memory.</p>
+      <p class="setup-note">Codex CLI:</p>
+      <div class="codeline">
+        <code>codex mcp add hive --url "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN"</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">Cursor, Windsurf, Cline, VS Code — any client that reads an MCP config:</p>
+      <div class="codeline">
+        <code>{ "mcpServers": { "hive": { "type": "http", "url": "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN" } } }</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">No MCP at all? Plain REST does everything the verbs do:</p>
+      <div class="codeline">
+        <code>curl -X POST https://hive.style.dev/api/share -H "Authorization: Bearer TEAM_TOKEN" -H "content-type: application/json" -d '{"agent":"my-bot","title":"Deployed the API","key":"deploy:api"}'</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">06</div>
       <h3>What your agent can do now</h3>
       <div class="verbs">
         <div class="chip">

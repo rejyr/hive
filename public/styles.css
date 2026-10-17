@@ -417,6 +417,14 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
 
 .avatar-stack { display: flex; align-items: center; gap: 7px; }
 
+.hive-tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-2-dark);
+}
+.hive-tag:empty { display: none; }
+.hive-tag a { color: var(--dark-ink); }
+
 /* ---------- shared: connection + counters ---------- */
 
 .conn {

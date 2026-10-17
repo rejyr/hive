@@ -12,6 +12,8 @@
   var COMPACT = root.getAttribute('data-variant') === 'compact';
   var MAX_ROWS = COMPACT ? 6 : 10;
   var MOCK = new URLSearchParams(location.search).get('mock') === '1';
+  var HIVE = (new URLSearchParams(location.search).get('hive') || 'default')
+    .toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'default';
   var reducedMotion = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -26,6 +28,7 @@
     queenBody: $('[data-hive="queen-body"]'),
     queenTs: $('[data-hive="queen-ts"]'),
     refresh: $('[data-hive="refresh"]'),
+    hiveTag: $('[data-hive="hivetag"]'),
     counters: {
       agents: $('[data-counter="agents"]'),
       shared: $('[data-counter="shared"]'),
@@ -231,7 +234,7 @@
   /* ---------- backfill + polling fallback ---------- */
 
   function backfill() {
-    return fetch('/api/events?limit=50')
+    return fetch('/api/events?limit=50&hive=' + HIVE)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data) return;
@@ -263,7 +266,7 @@
 
   function connect() {
     setConn('connecting');
-    var url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws';
+    var url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws?hive=' + HIVE;
     try {
       ws = new WebSocket(url);
     } catch (e) {
@@ -401,6 +404,24 @@
         backfill();
       }
     });
+  }
+
+  // which hive this page is scoped to (hidden for the default hive)
+  if (el.hiveTag && HIVE !== 'default') {
+    el.hiveTag.textContent = 'hive: ' + HIVE;
+    fetch('/api/hives')
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (list) {
+        var h = (list || []).filter(function (x) { return x.name === HIVE; })[0];
+        if (h && h.repo) {
+          el.hiveTag.textContent = 'hive: ' + HIVE + ' · ';
+          var a = document.createElement('a');
+          a.href = h.repo;
+          a.textContent = 'repo';
+          el.hiveTag.appendChild(a);
+        }
+      })
+      .catch(function () {});
   }
 
   setInterval(rerenderTimes, 30000);
