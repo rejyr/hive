@@ -561,6 +561,7 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
 
 .feed-row { cursor: pointer; }
 .feed-row.open { flex-wrap: wrap; }
+.row-detail[hidden] { display: none; } /* display:grid below would otherwise beat [hidden] */
 .row-detail {
   width: 100%;
   margin: 2px 0 4px 40px;

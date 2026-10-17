@@ -10,7 +10,7 @@ function text(obj) {
   return { content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2) }] };
 }
 
-function buildServer(ledger, agent, hive, authed = true) {
+function buildServer(ledger, agent, hive, authed = true, token = '') {
   const server = new McpServer({ name: 'hive', version: '0.1.0' });
 
   // Wrong/missing token: the connection WORKS, but every tool explains the fix.
@@ -89,8 +89,10 @@ function buildServer(ledger, agent, hive, authed = true) {
       const queen = await maybeSynthesize(ledger, { hive });
       const s = ledger.status(hive);
       const agents = s.agents.map((a) => `${a.name}${a.active ? ' (active)' : ''}`).join(', ') || 'none yet';
+      const domain = process.env.HIVE_DOMAIN || 'hive.style.dev';
+      const dash = hive === 'default' ? `https://${domain}/live` : `https://${domain}/live?token=${token}`;
       return text(
-        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger, hive) || 'The hive is empty — share something.'}`
+        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger, hive) || 'The hive is empty — share something.'}\n\nLive dashboard (share with the humans): ${dash}`
       );
     })
   );
@@ -159,7 +161,7 @@ export function createMcpHandler(ledger) {
       transport.onclose = () => {
         if (transport.sessionId) transports.delete(transport.sessionId);
       };
-      await buildServer(ledger, agent, hive, authed).connect(transport);
+      await buildServer(ledger, agent, hive, authed, token).connect(transport);
     }
 
     await transport.handleRequest(req, res, body);

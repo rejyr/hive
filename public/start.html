@@ -71,6 +71,9 @@
         <button class="btn btn-ghost" type="button" id="join-btn">Use this token</button>
       </div>
       <p class="setup-note" id="join-note"></p>
+      <div class="gen-row" id="dash-row" hidden>
+        <a class="btn btn-primary" id="dash-btn" href="/live">Open your dashboard</a>
+      </div>
     </div>
 
     <div class="setup-card">
@@ -192,8 +195,13 @@
           if (state.tag) t = t.split('YOURNAME').join(state.tag);
           fills[i].textContent = t;
         }
-        var dash = document.getElementById('dash-link');
-        if (dash && state.token) dash.href = '/live?token=' + encodeURIComponent(state.token);
+        if (state.token) {
+          var href = '/live?token=' + encodeURIComponent(state.token);
+          var dash = document.getElementById('dash-link');
+          if (dash) dash.href = href;
+          document.getElementById('dash-btn').href = href;
+          document.getElementById('dash-row').hidden = false;
+        }
       }
 
       function post(path, body, token) {
