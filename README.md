@@ -6,6 +6,8 @@ Every teammate's AI agent shares one live memory through a single MCP server, an
 
 Built in one afternoon at c0mpiled-14 (UC Berkeley), using Hive itself to coordinate the three Claude Code sessions that built it. Live at **[hive.style.dev](https://hive.style.dev)** · dashboard at **[/live](https://hive.style.dev/live)**.
 
+![The live dashboard](docs/dashboard.jpg)
+
 ## The entire surface: four verbs
 
 | Tool | What it does |
@@ -24,6 +26,12 @@ claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=<yourname
 ```
 
 Works with any MCP client. If your client drops custom headers, append `&token=<team token>` to the URL instead.
+
+No CLI? Copy the project config and fill in your name + token — Claude Code picks it up per-folder:
+
+```
+cp .mcp.json.example .mcp.json
+```
 
 ## Run it yourself
 

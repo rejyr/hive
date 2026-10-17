@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hive": {
+      "type": "http",
+      "url": "https://hive.style.dev/mcp?agent=YOURNAME&token=TEAM_TOKEN"
+    }
+  }
+}
