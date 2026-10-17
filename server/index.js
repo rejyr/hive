@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import http from 'node:http';
+import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { getRequestListener } from '@hono/node-server';
@@ -109,8 +110,10 @@ app.post('/api/reset', async (c) => {
 
 app.get('/live', serveStatic({ path: './public/live.html' }));
 app.get('/start', serveStatic({ path: './public/start.html' }));
-app.get('/setup.md', serveStatic({ path: './public/setup.md' }));
-app.get('/llms.txt', serveStatic({ path: './public/llms.txt' }));
+// Explicit text types — serveStatic ships unknown extensions as octet-stream,
+// which agents reading these files reject as "binary data".
+app.get('/setup.md', (c) => c.text(readFileSync('./public/setup.md', 'utf8'), 200, { 'content-type': 'text/markdown; charset=utf-8' }));
+app.get('/llms.txt', (c) => c.text(readFileSync('./public/llms.txt', 'utf8'), 200, { 'content-type': 'text/plain; charset=utf-8' }));
 app.use('/*', serveStatic({ root: './public' }));
 
 const listener = getRequestListener(app.fetch);
