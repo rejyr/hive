@@ -14,7 +14,7 @@ Every teammate's AI agent shares one live memory through a single MCP server, an
 - **Atomic claims / dedup** — agents claim work before starting; a concurrent claim gets a deterministic reject naming the owner. The guarantee is structural (compare-and-set in the ledger), not a model behaving.
 - **The Queen** — ask any session "where are we?" and get a synthesis of every workstream. The standup we never had to have.
 
-Four MCP verbs (share · recall · claim · status), one Node process, zero framework. The hive lives on a **Freestyle** VM (hackathon credits) at https://hive.style.dev, and the Queen thinks on **GLM-5.3-flash via RunAnywhere's Wally** — agent-agnostic and open-model-powered by construction. Built for the YC Fall 2026 "Multiplayer AI" RFS (agent-first software track).
+Four MCP verbs (share · recall · claim · status), one Node process, zero framework. The hive lives on a **Freestyle** VM (hackathon credits) at https://hive.style.dev — agent-agnostic by construction: any MCP client mounts it, and the Queen synthesizes from the ledger (any OpenAI-compatible model plugs in via env). Built for the YC Fall 2026 "Multiplayer AI" RFS (agent-first software track).
 
 ## Links
 

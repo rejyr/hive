@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { maybeSynthesize } from './queen.js';
+import { maybeSynthesize, buildDigest } from './queen.js';
 
 function text(obj) {
   return { content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2) }] };
@@ -77,7 +77,7 @@ function buildServer(ledger, agent) {
       const s = ledger.status();
       const agents = s.agents.map((a) => `${a.name}${a.active ? ' (active)' : ''}`).join(', ') || 'none yet';
       return text(
-        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || 'synthesis unavailable'}`
+        `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger) || 'The hive is empty — share something.'}`
       );
     }
   );

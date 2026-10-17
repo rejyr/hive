@@ -49,14 +49,14 @@ node scripts/smoke.js  # share → recall → claim → claim-again-rejected →
 laptop A (Claude Code) ─┐
 laptop B (Claude Code) ─┼─ MCP /mcp ─→ one Node process ── SQLite ledger (events + claims)
 laptop C (any agent)   ─┘               (Freestyle VM)   ├─ WebSocket /ws → live dashboard
-                                                         └─ the Queen: GLM-5.3-flash via
-                                                            RunAnywhere (synthesis only —
-                                                            core verbs never depend on her)
+                                                         └─ the Queen: ledger synthesis
+                                                            (deterministic; any OpenAI-
+                                                            compatible model slots in via env)
 ```
 
 - One process: Hono + ws + better-sqlite3 + `@modelcontextprotocol/sdk` (Streamable HTTP). No framework, no build step.
 - Hosted on a **Freestyle** VM (hackathon credits — thanks!), `idleTimeoutSeconds: null`.
-- The Queen thinks on an open model (**GLM-5.3-flash via RunAnywhere/Wally**, OpenAI-compatible). If she's down, share/recall/claim don't care.
+- The Queen answers "where are we?" from the ledger itself — deterministic, zero dependencies. Set `QUEEN_BASE_URL`/`QUEEN_API_KEY` to any OpenAI-compatible endpoint and she upgrades to prose. Either way, share/recall/claim never depend on her.
 - Docs: [architecture](docs/ARCHITECTURE.md) · [design system](docs/DESIGN.md) · [demo script](docs/DEMO.md) · [pitch](docs/PITCH.md)
 
 Built for the YC Fall 2026 "Multiplayer AI" RFS, agent-first software track.

@@ -9,7 +9,7 @@
 1. Problem (15s): AI agents are single-player. Three people, three Claude sessions, zero shared context — we coordinate our AIs with Slack pings and spreadsheets.
 2. What we built (20s): one-liner + follow-up. "It's four MCP verbs: share, recall, claim, status."
 3. Demo (40s): the video beats, live if possible.
-4. How + vision (15s): "The ledger runs on a Freestyle VM; the Queen thinks on an open model via RunAnywhere's Wally — agent-agnostic by construction. Every multiplayer era needed a game server. We built one for agents."
+4. How + vision (15s): "The ledger runs on a Freestyle VM; any MCP agent can mount it — agent-agnostic by construction. Every multiplayer era needed a game server. We built one for agents."
 
 ## Judge Q&A (prepared answers)
 
@@ -19,10 +19,9 @@
 - **"How is this different from existing agent memory products?"** — Memory products remember for one user. Hive coordinates across many people's agents: recall is the memory half; atomic claims — allocating who does what — is the half memory products don't do.
 - **"Why not one orchestrator running all the agents?"** — Orchestrators parallelize one person's agents. Hive coordinates agents owned by different people on different machines, with no central owner — the Queen advises, the ledger decides.
 
-## Credits usage (say these out loud)
+## Credits usage (say this out loud)
 
 - "The hive lives on a **Freestyle** VM — redeemed with their hackathon credits, deployed at hive.style.dev."
-- "The Queen runs on **GLM-5.3-flash via RunAnywhere's Wally** — open model, OpenAI-compatible endpoint, fast enough to synthesize on camera."
 
 ## Submission checklist (form arrives in the afternoon — due 4:30pm)
 

@@ -3,14 +3,48 @@ const SYSTEM_PROMPT =
   'In 4-6 short sentences, plain prose, no markdown, no preamble: what is DONE, what is IN PROGRESS and by whom, ' +
   'what is NEXT, and any conflicts or duplicates prevented.';
 
+// Deterministic synthesis straight from the ledger — the Queen's model-free voice.
+// Real data only: active agents, freshest share per agent, open claims, counters.
+export function buildDigest(ledger) {
+  const s = ledger.status();
+  // recentEvents returns oldest-first; reverse so "last shared" finds the newest
+  const events = ledger.recentEvents(50).filter((e) => e.verb !== 'QUEEN').reverse();
+  if (!events.length) return null;
+  const mins = (ts) => Math.max(0, Math.round((Date.now() - ts) / 60000));
+  const parts = [];
+  const active = s.agents.filter((a) => a.active).map((a) => a.name);
+  parts.push(
+    `${active.length || s.agents.length} agent${active.length === 1 ? '' : 's'} in the hive` +
+      (active.length ? ` (${active.join(', ')})` : '') +
+      `. ${s.shared} item${s.shared === 1 ? '' : 's'} shared, ${s.deduped} duplicate${s.deduped === 1 ? '' : 's'} prevented.`
+  );
+  for (const a of s.agents.slice(0, 4)) {
+    const last = events.find((e) => e.agent === a.name && e.verb === 'SHARE');
+    if (last) parts.push(`${a.name} last shared: ${last.title} (${mins(last.ts)} min ago).`);
+  }
+  const claims = ledger.db
+    .prepare('SELECT * FROM claims ORDER BY ts DESC LIMIT 5')
+    .all()
+    .map((c) => `${c.title} (${c.agent})`);
+  if (claims.length) parts.push(`In progress: ${claims.join('; ')}.`);
+  return parts.join(' ');
+}
+
 // Returns the latest QUEEN event, synthesizing a fresh one when there is news.
-// Never throws — Queen failures degrade to the last good synthesis (or null).
+// Never throws — Queen failures degrade to the last good synthesis, then the digest.
 export async function maybeSynthesize(ledger, { force = false } = {}) {
   const base = process.env.QUEEN_BASE_URL;
   const key = process.env.QUEEN_API_KEY;
   const model = process.env.QUEEN_MODEL || 'glm-5.3-flash';
   const latest = ledger.latestQueen();
-  if (!base || !key) return latest;
+  if (!base || !key) {
+    // No model configured: on an explicit ask, publish the deterministic digest
+    // so the dashboard panel and hive_status still answer "where are we?".
+    if (!force) return latest;
+    const text = buildDigest(ledger);
+    if (!text) return latest;
+    return ledger.addEvent({ agent: 'queen', verb: 'QUEEN', title: 'Where are we?', body: text });
+  }
 
   const events = ledger.recentEvents(50);
   const news = events.some((e) => (!latest || e.id > latest.id) && e.verb !== 'RECALL' && e.verb !== 'QUEEN');
