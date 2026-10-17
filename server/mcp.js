@@ -102,7 +102,10 @@ export function createMcpHandler(ledger) {
   const transports = new Map(); // sessionId -> transport
 
   return async function handleMcp(req, res) {
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const url = new URL(req.url, 'http://localhost');
+    // Primary: Authorization header. Fallback: ?token= — same shared team token,
+    // for MCP clients that drop custom headers.
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || url.searchParams.get('token') || '';
     if (process.env.HIVE_TOKEN && token !== process.env.HIVE_TOKEN) {
       res.writeHead(401, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'unauthorized' }, id: null }));
@@ -115,11 +118,12 @@ export function createMcpHandler(ledger) {
 
     if (!transport) {
       if (!(body && isInitializeRequest(body))) {
-        res.writeHead(400, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'no valid session; initialize first' }, id: null }));
+        // 404 per MCP spec: tells the client its session is gone (e.g. server restarted)
+        // so it transparently re-initializes instead of erroring out.
+        res.writeHead(404, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'session not found; re-initialize' }, id: null }));
         return;
       }
-      const url = new URL(req.url, 'http://localhost');
       const agent = (url.searchParams.get('agent') || 'anonymous').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'anonymous';
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),

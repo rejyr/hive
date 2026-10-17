@@ -13,6 +13,15 @@ Teammates' agents (Claude Code on separate laptops) share one live memory throug
 5. **Queen failures must never block the core.** share/recall/claim work even if the Queen or her model is down.
 6. Simulated/demo data must be plausible but clearly team-internal (our names, this project's tasks) — no invented third parties presented as real.
 
+## Hive etiquette (while building — we use Hive to build Hive)
+
+Once the `hive` MCP server is connected, these are mandatory during the build:
+
+1. **Before starting any shared task:** `hive_claim` with a stable key (`task:dashboard`, `task:readme-setup`). If REJECTED, do not do the work — `hive_recall` the owner's output and build on it.
+2. **After finishing anything a teammate could need** (endpoint shape, schema, working command, decision, gotcha): `hive_share` immediately. Title = one line; body = the thing itself, paste-ready. 1–3 shares per task, facts not narration.
+3. **When blocked on something a teammate owns:** `hive_recall` first — before reading their code or asking a human.
+4. Never share secrets or tokens. Never block on Hive — if a call fails, continue and note it.
+
 ## Stack (decided — do not relitigate)
 
 - One Node 20+ process: **Hono** (HTTP + static) + **ws** (WebSocket) + **better-sqlite3** (ledger) + **@modelcontextprotocol/sdk** (MCP over Streamable HTTP at `/mcp`).
