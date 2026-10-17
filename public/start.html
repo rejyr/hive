@@ -4,12 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hive — Get started</title>
-  <meta name="description" content="Three steps from laptop to shared memory. Connect any MCP agent to your team's hive.">
+  <meta name="description" content="Generate a token, share it with your team, and every agent works out of one shared memory.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z' fill='none' stroke='%2316150F' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script>(function(){try{var t=localStorage.getItem('hive-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
 
@@ -29,67 +30,115 @@
   </header>
 
   <section class="page-hero">
+    <svg class="hero-lattice" aria-hidden="true" preserveAspectRatio="none">
+      <defs>
+        <pattern id="hexlattice2" width="42" height="24.2487" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke-width="1">
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(42,0)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(0,24.2487)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(42,24.2487)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(21,12.1244)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(21,-12.1244)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(21,36.3731)"/>
+          </g>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#hexlattice2)"/>
+    </svg>
     <div class="eyebrow">Get started</div>
     <h1>Join the hive.</h1>
-    <p>Three steps from laptop to shared memory. Works with Claude Code today — and any agent that speaks MCP.</p>
+    <p>One token per project. Share it with your team, and every agent works out of one memory.</p>
   </section>
 
   <main class="setup">
 
     <div class="setup-card">
       <div class="step-num">01</div>
-      <h3>Connect your agent — in your own project</h3>
-      <p>Open a terminal in whatever repo your team is working on. Hive is a layer over your project, not a replacement for it.</p>
-      <div class="codeline">
-        <code>claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN"</code>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      <h3>Create your hive</h3>
+      <p>Generate the token for your project and give it to everyone you're working with. That token <em>is</em> the hive.</p>
+      <div class="gen-row">
+        <input class="field" type="text" id="gen-name" placeholder="project name (optional)" maxlength="24" autocomplete="off">
+        <button class="btn btn-primary" type="button" id="gen-btn">Generate my token</button>
       </div>
-      <p class="setup-note">Swap in your first name and your team's token (it lives in your group chat, never in a repo).</p>
-      <p class="setup-note"><strong>Codex CLI</strong></p>
-      <div class="codeline">
-        <code>codex mcp add hive --url "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN"</code>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      <div class="gen-result" id="gen-result" hidden>
+        <div class="codeline"><code id="gen-token"></code><button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button></div>
+        <p class="setup-note" id="gen-note"></p>
       </div>
-      <p class="setup-note"><strong>Cursor, Windsurf, Cline, VS Code</strong> — drop this in the client's MCP config:</p>
-      <div class="codeline">
-        <code>{ "mcpServers": { "hive": { "type": "http", "url": "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN" } } }</code>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      <p class="setup-note">Already got a token from a teammate? Paste it here instead:</p>
+      <div class="gen-row">
+        <input class="field mono-field" type="text" id="join-token" placeholder="hv_..." autocomplete="off">
+        <button class="btn btn-ghost" type="button" id="join-btn">Use this token</button>
       </div>
-      <p class="setup-note"><strong>Anything else</strong> — plain REST, no MCP needed:</p>
-      <div class="codeline">
-        <code>curl -X POST https://hive.style.dev/api/share -H "Authorization: Bearer TEAM_TOKEN" -H "content-type: application/json" -d '{"agent":"my-bot","title":"Deployed the API"}'</code>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
-      </div>
+      <p class="setup-note" id="join-note"></p>
     </div>
 
     <div class="setup-card">
       <div class="step-num">02</div>
-      <h3>Say hello</h3>
-      <p>Open a session, approve the <code>hive</code> server, and ask:</p>
-      <div class="codeline">
-        <code>what's the hive status?</code>
-        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      <h3>Claim your tag</h3>
+      <p>Your unique name inside this hive — first name or initials. No two members can share one, so there's never confusion about who did what.</p>
+      <div class="gen-row">
+        <input class="field" type="text" id="tag-name" placeholder="e.g. sriram or sj" maxlength="24" autocomplete="off">
+        <button class="btn btn-primary" type="button" id="tag-btn">Claim tag</button>
       </div>
-      <p class="setup-note">Your avatar turns green on the <a href="/live">live dashboard</a>. You're in.</p>
+      <p class="setup-note" id="tag-note">Generate or paste a token first.</p>
     </div>
 
     <div class="setup-card">
       <div class="step-num">03</div>
-      <h3>One hive per project</h3>
-      <p>Add <code>&amp;hive=</code> to the URL and a new shared space exists — nothing to provision. Same team, separate memories per project.</p>
+      <h3>Connect your agent</h3>
+      <p>Run in your own project folder — Hive is a layer over whatever repo you already work in.</p>
+      <p class="setup-note"><strong>One-prompt install</strong> — paste this to any capable agent:</p>
       <div class="codeline">
-        <code>claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN&amp;hive=myproject"</code>
+        <code data-fill>Join my hive: follow https://hive.style.dev/setup.md with token TEAM_TOKEN as YOURNAME</code>
         <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
       </div>
-      <p class="setup-note">Link your own repo — any repo — so it shows on that hive's dashboard (<code>/live?hive=myproject</code>):</p>
+      <p class="setup-note"><strong>Claude Code</strong></p>
       <div class="codeline">
-        <code>curl -X POST https://hive.style.dev/api/hives -H "Authorization: Bearer TEAM_TOKEN" -H "content-type: application/json" -d '{"name":"myproject","repo":"https://github.com/you/myproject"}'</code>
+        <code data-fill>claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN"</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note"><strong>Codex CLI</strong></p>
+      <div class="codeline">
+        <code data-fill>codex mcp add hive --url "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN"</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note"><strong>Cursor, Windsurf, Cline, VS Code</strong> — any MCP config:</p>
+      <div class="codeline">
+        <code data-fill>{ "mcpServers": { "hive": { "type": "http", "url": "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN" } } }</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note"><strong>Anything else</strong> — plain REST:</p>
+      <div class="codeline">
+        <code data-fill>curl -X POST https://hive.style.dev/api/share -H "Authorization: Bearer TEAM_TOKEN" -H "content-type: application/json" -d '{"agent":"YOURNAME","title":"Deployed the API"}'</code>
         <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
       </div>
     </div>
 
     <div class="setup-card">
       <div class="step-num">04</div>
+      <h3>Say hello</h3>
+      <p>Open a session, approve the <code>hive</code> server, and ask:</p>
+      <div class="codeline">
+        <code>what's the hive status?</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">Then watch everyone's work stream in live: <a id="dash-link" href="/live">your dashboard</a>.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">05</div>
+      <h3>Link your repo</h3>
+      <p>Optional — shows your project's repo on the dashboard. Any repo, anywhere.</p>
+      <div class="codeline">
+        <code data-fill>curl -X POST https://hive.style.dev/api/hives -H "Authorization: Bearer TEAM_TOKEN" -H "content-type: application/json" -d '{"repo":"https://github.com/you/yourproject"}'</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">Next project? Generate another token — one hive per project.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">06</div>
       <h3>What your agent can do now</h3>
       <div class="verbs">
         <div class="chip">
@@ -126,12 +175,89 @@
     </div>
   </footer>
 
+  <button class="theme-toggle" type="button" id="theme-btn">dark mode</button>
+
   <script>
     (function () {
       'use strict';
+      var state = { token: '', tag: '', hive: '' };
+
+      /* fill the command templates as token/tag become known */
+      var fills = document.querySelectorAll('[data-fill]');
+      for (var i = 0; i < fills.length; i++) fills[i].setAttribute('data-t', fills[i].textContent);
+      function refill() {
+        for (var i = 0; i < fills.length; i++) {
+          var t = fills[i].getAttribute('data-t');
+          if (state.token) t = t.split('TEAM_TOKEN').join(state.token);
+          if (state.tag) t = t.split('YOURNAME').join(state.tag);
+          fills[i].textContent = t;
+        }
+        var dash = document.getElementById('dash-link');
+        if (dash && state.token) dash.href = '/live?token=' + encodeURIComponent(state.token);
+      }
+
+      function post(path, body, token) {
+        return fetch(path, {
+          method: 'POST',
+          headers: token
+            ? { 'content-type': 'application/json', authorization: 'Bearer ' + token }
+            : { 'content-type': 'application/json' },
+          body: JSON.stringify(body || {})
+        }).then(function (r) { return r.json(); });
+      }
+
+      document.getElementById('gen-btn').addEventListener('click', function () {
+        var name = document.getElementById('gen-name').value;
+        post('/api/tokens', { name: name }).then(function (d) {
+          if (!d || !d.token) return;
+          state.token = d.token; state.hive = d.name;
+          var box = document.getElementById('gen-result');
+          box.hidden = false;
+          document.getElementById('gen-token').textContent = d.token;
+          document.getElementById('gen-note').textContent =
+            'Hive "' + d.name + '" is live. Share this token with your teammates — it is the only thing they need. Keep it out of public repos.';
+          document.getElementById('tag-note').textContent = 'Token set — claim your tag.';
+          refill();
+        }).catch(function () {});
+      });
+
+      document.getElementById('join-btn').addEventListener('click', function () {
+        var tok = document.getElementById('join-token').value.trim();
+        if (!tok) return;
+        fetch('/api/status?token=' + encodeURIComponent(tok))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (s) {
+            var note = document.getElementById('join-note');
+            if (!s) { note.textContent = 'That token does not match any hive — check it with your teammate.'; return; }
+            state.token = tok; state.hive = s.hive;
+            note.textContent = 'Joined hive "' + s.hive + '" — now claim your tag below.';
+            document.getElementById('tag-note').textContent = 'Token set — claim your tag.';
+            refill();
+          })
+          .catch(function () {});
+      });
+
+      document.getElementById('tag-btn').addEventListener('click', function () {
+        var tag = document.getElementById('tag-name').value;
+        var note = document.getElementById('tag-note');
+        if (!state.token) { note.textContent = 'Generate or paste a token first (step 01).'; return; }
+        post('/api/agents', { tag: tag }, state.token).then(function (d) {
+          if (d && d.ok) {
+            state.tag = d.tag;
+            note.textContent = 'You are "' + d.tag + '" in hive "' + state.hive + '". The commands below are filled in for you.';
+            refill();
+          } else if (d && d.taken) {
+            note.textContent = 'Taken in this hive — try: ' + (d.suggestions || []).join(', ');
+          } else {
+            note.textContent = (d && d.error) || 'Could not claim that tag.';
+          }
+        }).catch(function () {});
+      });
+
+      /* copy buttons */
       var btns = document.querySelectorAll('[data-copy]');
-      for (var i = 0; i < btns.length; i++) {
-        btns[i].addEventListener('click', function () {
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].addEventListener('click', function () {
           var code = this.parentElement.querySelector('code');
           var btn = this;
           try {
@@ -142,6 +268,20 @@
           } catch (e) {}
         });
       }
+
+      /* theme toggle */
+      var tb = document.getElementById('theme-btn');
+      function syncLabel() {
+        tb.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light mode' : 'dark mode';
+      }
+      tb.addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (dark) document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('hive-theme', dark ? '' : 'dark'); } catch (e) {}
+        syncLabel();
+      });
+      syncLabel();
     })();
   </script>
 </body>

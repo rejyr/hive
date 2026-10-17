@@ -14,6 +14,8 @@
   var MOCK = new URLSearchParams(location.search).get('mock') === '1';
   var HIVE = (new URLSearchParams(location.search).get('hive') || 'default')
     .toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'default';
+  var TOKEN = new URLSearchParams(location.search).get('token') || '';
+  var QS = 'hive=' + HIVE + (TOKEN ? '&token=' + encodeURIComponent(TOKEN) : '');
   var reducedMotion = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -29,6 +31,7 @@
     queenTs: $('[data-hive="queen-ts"]'),
     refresh: $('[data-hive="refresh"]'),
     hiveTag: $('[data-hive="hivetag"]'),
+    work: $('[data-hive="work"]'),
     counters: {
       agents: $('[data-counter="agents"]'),
       shared: $('[data-counter="shared"]')
@@ -39,7 +42,7 @@
 
   /* ---------- agent ring colors (stable per agent) ---------- */
 
-  var KNOWN_RINGS = { vihaan: '#E0713F', sriram: '#4E9BB9', jerry: '#C65D8A', tushar: '#7FA65A' };
+  var KNOWN_RINGS = { vihaan: '#E0713F', sriram: '#4E9BB9', jerry: '#C65D8A' };
   var RING_PALETTE = ['#E0713F', '#4E9BB9', '#C65D8A', '#7FA65A', '#B08D3F', '#5F8F7B'];
 
   function ringColor(name) {
@@ -54,6 +57,8 @@
 
   var seen = {};                 // event id -> true
   var agents = {};               // name -> last event ts
+  var lastShare = {};            // name -> latest SHARE event (for the work panel)
+  var locked = false;
   var derived = { shared: 0, deduped: 0 };
   var serverCounters = null;     // latest {"type":"counters"} payload
   var queen = null;              // latest QUEEN event
@@ -93,7 +98,7 @@
     av.title = name;
     var inner = document.createElement('span');
     inner.className = 'hexav-in';
-    inner.textContent = String(name || '?').charAt(0);
+    inner.textContent = String(name || '?').slice(0, 2);
     av.appendChild(inner);
     return av;
   }
@@ -187,7 +192,10 @@
     if (ev.agent && ev.agent !== 'queen') {
       agents[ev.agent] = Math.max(agents[ev.agent] || 0, ev.ts || Date.now());
     }
-    if (ev.verb === 'SHARE') derived.shared++;
+    if (ev.verb === 'SHARE') {
+      derived.shared++;
+      if (!lastShare[ev.agent] || (ev.ts || 0) >= (lastShare[ev.agent].ts || 0)) lastShare[ev.agent] = ev;
+    }
     if (ev.verb === 'DEDUPE') derived.deduped++;
     if (ev.verb === 'QUEEN' && (!queen || (ev.ts || 0) >= (queen.ts || 0))) {
       queen = ev;
@@ -266,6 +274,53 @@
     });
   }
 
+  // Who's doing what: per-agent card — current claim, latest share, presence.
+  function renderWork() {
+    if (!el.work) return;
+    el.work.textContent = '';
+    var claims = (serverCounters && serverCounters.claims) || [];
+    agentList().forEach(function (a) {
+      var card = document.createElement('div');
+      card.className = 'work-row';
+      var head = document.createElement('div');
+      head.className = 'work-head';
+      head.appendChild(hexAvatar(a.name, a.active));
+      var who = document.createElement('span');
+      who.className = 'work-name';
+      who.textContent = a.name;
+      head.appendChild(who);
+      var state = document.createElement('span');
+      state.className = 'work-state' + (a.active ? ' on' : '');
+      state.textContent = a.active ? 'active' : 'idle';
+      head.appendChild(state);
+      card.appendChild(head);
+
+      var mine = claims.filter(function (cl) { return cl.agent === a.name; })[0];
+      var doing = document.createElement('p');
+      doing.className = 'work-line';
+      doing.textContent = mine ? 'working on: ' + mine.title : 'no open claim';
+      card.appendChild(doing);
+
+      var sh = lastShare[a.name];
+      if (sh) {
+        var sl = document.createElement('p');
+        sl.className = 'work-line dim';
+        sl.textContent = 'last shared: ' + sh.title + ' · ' + relTime(sh.ts);
+        card.appendChild(sl);
+      }
+      el.work.appendChild(card);
+    });
+  }
+
+  function showLocked() {
+    locked = true;
+    setConn('down', 'locked');
+    if (el.empty) {
+      el.empty.hidden = false;
+      el.empty.textContent = 'This hive is private. Open the dashboard with your token: /live?token=YOUR_TOKEN — or generate one on the Get started page.';
+    }
+  }
+
   function setConn(state, label) {
     if (el.dot) {
       el.dot.className = 'dot' +
@@ -280,18 +335,25 @@
       addEventRow(msg.event, true);
       renderCounters();
       renderAvatars();
+      renderWork();
     } else if (msg.type === 'counters') {
       serverCounters = msg;
       renderCounters();
       renderAvatars();
+      renderWork();
+    } else if (msg.type === 'locked') {
+      showLocked();
     }
   }
 
   /* ---------- backfill + polling fallback ---------- */
 
   function backfill() {
-    return fetch('/api/events?limit=50&hive=' + HIVE)
-      .then(function (r) { return r.ok ? r.json() : null; })
+    return fetch('/api/events?limit=50&' + QS)
+      .then(function (r) {
+        if (r.status === 401) { showLocked(); return null; }
+        return r.ok ? r.json() : null;
+      })
       .then(function (data) {
         if (!data) return;
         var list = Array.isArray(data) ? data : (data.events || []);
@@ -301,6 +363,7 @@
         list.forEach(function (ev) { addEventRow(ev, false); });
         renderCounters();
         renderAvatars();
+        renderWork();
       })
       .catch(function () {});
   }
@@ -322,7 +385,8 @@
 
   function connect() {
     setConn('connecting');
-    var url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws?hive=' + HIVE;
+    if (locked) return;
+    var url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws?' + QS;
     try {
       ws = new WebSocket(url);
     } catch (e) {
@@ -350,6 +414,7 @@
 
   function wsDown() {
     clearInterval(pingTimer);
+    if (locked) return;
     setConn('down', 'reconnecting');
     startPolling();
     var delay = Math.min(15000, 1000 * Math.pow(2, attempts++)) + Math.random() * 400;
@@ -358,7 +423,7 @@
 
   /* ---------- mock mode (?mock=1) — no network, plausible events ---------- */
 
-  var MOCK_AGENTS = ['vihaan', 'sriram', 'jerry', 'tushar'];
+  var MOCK_AGENTS = ['vihaan', 'sriram', 'jerry'];
   var MOCK_POOL = {
     SHARE: [
       ['deploy:server', 'Server deployed to hive.style.dev'],
@@ -388,9 +453,9 @@
     QUEEN: [
       ['status:synthesis', 'Where are we?',
         'Server is live on hive.style.dev with the ledger and MCP endpoint done. ' +
-        'Sriram is wiring the dashboard feed against the pinned wire format, jerry ' +
-        'has the README claimed, and tushar owns the demo script. One duplicate was ' +
-        'prevented on docs:setup. Next up: the four-laptop integration test.']
+        'Sriram is wiring the dashboard feed against the pinned wire format, and ' +
+        'jerry has the README and demo script claimed. One duplicate was ' +
+        'prevented on docs:setup. Next up: the three-laptop integration test.']
     ]
   };
 
@@ -463,16 +528,15 @@
   }
 
   // which hive this page is scoped to (hidden for the default hive)
-  if (el.hiveTag && HIVE !== 'default') {
-    el.hiveTag.textContent = 'hive: ' + HIVE;
-    fetch('/api/hives')
-      .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (list) {
-        var h = (list || []).filter(function (x) { return x.name === HIVE; })[0];
-        if (h && h.repo) {
-          el.hiveTag.textContent = 'hive: ' + HIVE + ' · ';
+  if (el.hiveTag && (HIVE !== 'default' || TOKEN)) {
+    fetch('/api/status?' + QS)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) {
+        if (!s || s.hive === 'default') return;
+        el.hiveTag.textContent = 'hive: ' + s.hive + (s.repo ? ' · ' : '');
+        if (s.repo) {
           var a = document.createElement('a');
-          a.href = h.repo;
+          a.href = s.repo;
           a.textContent = 'repo';
           el.hiveTag.appendChild(a);
         }

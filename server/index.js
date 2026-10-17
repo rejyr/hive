@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import http from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { getRequestListener } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -12,55 +13,104 @@ const PORT = Number(process.env.PORT || 3000);
 const ledger = openLedger();
 const app = new Hono();
 
-const auth = async (c, next) => {
-  const t = (c.req.header('authorization') || '').replace(/^Bearer\s+/i, '');
-  if (process.env.HIVE_TOKEN && t !== process.env.HIVE_TOKEN) return c.json({ error: 'unauthorized' }, 401);
-  await next();
-};
+function tokenOf(c) {
+  return (c.req.header('authorization') || '').replace(/^Bearer\s+/i, '') || c.req.query('token') || '';
+}
+// The hive a request may WRITE to: its token decides. Env team token may name a hive (back-compat).
+function writeHive(c, bodyHive) {
+  const token = tokenOf(c);
+  const hive = ledger.hiveForToken(token);
+  if (!hive) return null;
+  if (hive === 'default' && bodyHive) return sanitizeName(bodyHive, 'default');
+  return hive;
+}
+// The hive a request may READ: its token's hive; tokenless reads see only the public demo hive.
+function readHive(c) {
+  const token = tokenOf(c);
+  const fromToken = ledger.hiveForToken(token);
+  if (fromToken) {
+    const q = sanitizeName(c.req.query('hive'), fromToken);
+    return fromToken === 'default' ? q : fromToken;
+  }
+  const q = sanitizeName(c.req.query('hive'), 'default');
+  return q === 'default' ? 'default' : null;
+}
 
 app.get('/health', (c) => c.json({ ok: true, ts: Date.now() }));
+
 app.get('/api/events', (c) => {
-  const hive = sanitizeName(c.req.query('hive'), 'default');
+  const hive = readHive(c);
+  if (!hive) return c.json({ error: 'token required for this hive' }, 401);
   return c.json(ledger.recentEvents(Number(c.req.query('limit')) || 50, hive));
 });
-app.get('/api/status', (c) => c.json(ledger.status(sanitizeName(c.req.query('hive'), 'default'))));
-app.get('/api/hives', (c) => c.json(ledger.listHives()));
+app.get('/api/status', (c) => {
+  const hive = readHive(c);
+  if (!hive) return c.json({ error: 'token required for this hive' }, 401);
+  const info = ledger.hiveInfo(hive);
+  return c.json({ ...ledger.status(hive), repo: info?.repo || null, members: ledger.members(hive) });
+});
 
-app.post('/api/hives', auth, async (c) => {
-  const { name, repo } = await c.req.json();
-  const hive = sanitizeName(name, '');
-  if (!hive) return c.json({ error: 'name required' }, 400);
+// Create a hive + its token. Public: this is the front door.
+app.post('/api/tokens', async (c) => {
+  const { name } = await c.req.json().catch(() => ({}));
+  const made = ledger.createHive(name, randomUUID);
+  return c.json(made);
+});
+// Reserve your unique member tag in the token's hive.
+app.post('/api/agents', async (c) => {
+  const { tag } = await c.req.json().catch(() => ({}));
+  const hive = writeHive(c);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
+  return c.json({ hive, ...ledger.claimTag(hive, tag) });
+});
+// Link a repo to the token's hive.
+app.post('/api/hives', async (c) => {
+  const { repo, hive: bodyHive } = await c.req.json().catch(() => ({}));
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
   const repoUrl = typeof repo === 'string' && /^https?:\/\/\S{1,200}$/.test(repo) ? repo : null;
   return c.json(ledger.registerHive(hive, repoUrl));
 });
-app.post('/api/share', auth, async (c) => {
-  const { agent = 'api', hive, title, body, key } = await c.req.json();
+
+app.post('/api/share', async (c) => {
+  const { agent = 'api', hive: bodyHive, title, body, key } = await c.req.json();
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
   if (!title) return c.json({ error: 'title required' }, 400);
-  return c.json(ledger.share({ hive: sanitizeName(hive, 'default'), agent, title, body, key }));
+  return c.json(ledger.share({ hive, agent, title, body, key }));
 });
-app.post('/api/recall', auth, async (c) => {
-  const { agent = 'api', hive, query } = await c.req.json();
-  return c.json(ledger.recall({ hive: sanitizeName(hive, 'default'), agent, query }));
+app.post('/api/recall', async (c) => {
+  const { agent = 'api', hive: bodyHive, query } = await c.req.json();
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
+  return c.json(ledger.recall({ hive, agent, query }));
 });
-app.post('/api/claim', auth, async (c) => {
-  const { agent = 'api', hive, key, title } = await c.req.json();
+app.post('/api/claim', async (c) => {
+  const { agent = 'api', hive: bodyHive, key, title } = await c.req.json();
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
   if (!key || !title) return c.json({ error: 'key and title required' }, 400);
-  return c.json(ledger.claim({ hive: sanitizeName(hive, 'default'), agent, key, title }));
+  return c.json(ledger.claim({ hive, agent, key, title }));
 });
-app.post('/api/queen', auth, async (c) => {
-  const { hive } = await c.req.json().catch(() => ({}));
-  return c.json(await maybeSynthesize(ledger, { force: true, hive: sanitizeName(hive, 'default') }));
+app.post('/api/queen', async (c) => {
+  const { hive: bodyHive } = await c.req.json().catch(() => ({}));
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
+  return c.json(await maybeSynthesize(ledger, { force: true, hive }));
 });
-app.post('/api/reset', auth, async (c) => {
-  const { hive } = await c.req.json().catch(() => ({}));
-  const h = sanitizeName(hive, 'default');
-  ledger.reset(h);
-  broadcastCounters(h);
-  return c.json({ ok: true, hive: h });
+app.post('/api/reset', async (c) => {
+  const { hive: bodyHive } = await c.req.json().catch(() => ({}));
+  const hive = writeHive(c, bodyHive);
+  if (!hive) return c.json({ error: 'valid token required' }, 401);
+  ledger.reset(hive);
+  broadcastCounters(hive);
+  return c.json({ ok: true, hive });
 });
 
 app.get('/live', serveStatic({ path: './public/live.html' }));
 app.get('/start', serveStatic({ path: './public/start.html' }));
+app.get('/setup.md', serveStatic({ path: './public/setup.md' }));
+app.get('/llms.txt', serveStatic({ path: './public/llms.txt' }));
 app.use('/*', serveStatic({ root: './public' }));
 
 const listener = getRequestListener(app.fetch);
@@ -81,7 +131,6 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server, path: '/ws' });
-
 wss.on('error', (e) => console.error('[wss]', e));
 
 function broadcast(obj, hive = 'default') {
@@ -98,9 +147,18 @@ function broadcastCounters(hive = 'default') {
 wss.on('connection', (ws, req) => {
   ws.on('error', () => {}); // dead clients on hostile wifi must not crash the process
   const url = new URL(req.url || '/ws', 'http://localhost');
-  ws.hiveName = sanitizeName(url.searchParams.get('hive'), 'default');
-  ws.send(JSON.stringify(ledger.counters(ws.hiveName)));
-  const queen = ledger.latestQueen(ws.hiveName);
+  const token = url.searchParams.get('token') || '';
+  const fromToken = ledger.hiveForToken(token);
+  const asked = sanitizeName(url.searchParams.get('hive'), 'default');
+  const hive = fromToken ? (fromToken === 'default' ? asked : fromToken) : asked === 'default' ? 'default' : null;
+  if (!hive) {
+    ws.send(JSON.stringify({ type: 'locked' }), () => {});
+    ws.close();
+    return;
+  }
+  ws.hiveName = hive;
+  ws.send(JSON.stringify(ledger.counters(hive)));
+  const queen = ledger.latestQueen(hive);
   if (queen) ws.send(JSON.stringify({ type: 'event', event: queen }));
   ws.on('message', (m) => {
     try {

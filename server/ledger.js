@@ -43,7 +43,15 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
     CREATE TABLE IF NOT EXISTS hives (
       name TEXT PRIMARY KEY,
       repo TEXT,
+      token TEXT,
       ts INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS hives_token ON hives (token) WHERE token IS NOT NULL;
+    CREATE TABLE IF NOT EXISTS members (
+      hive TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      ts INTEGER NOT NULL,
+      PRIMARY KEY (hive, tag)
     );
   `;
   // Pre-multi-hive databases lack the hive column; rebuild BEFORE creating the
@@ -55,6 +63,12 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
       console.warn('[ledger] migrating to multi-hive schema (old tables dropped)');
       db.exec('DROP TABLE IF EXISTS events; DROP TABLE IF EXISTS memories; DROP TABLE IF EXISTS claims;');
     }
+  }
+  // hives table predates per-hive tokens; add the column in place.
+  const hivesExists = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='hives'").get().n > 0;
+  if (hivesExists) {
+    const hasToken = db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('hives') WHERE name = 'token'").get().n > 0;
+    if (!hasToken) db.exec('ALTER TABLE hives ADD COLUMN token TEXT;');
   }
   db.exec(CREATE);
 
@@ -149,11 +163,12 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
     INSERT INTO hives (name, repo, ts) VALUES (?, ?, ?)
     ON CONFLICT(name) DO UPDATE SET repo=COALESCE(excluded.repo, hives.repo)
   `);
-  const listHivesStmt = db.prepare(`
-    SELECT h.name, h.repo, h.ts,
-      (SELECT COUNT(*) FROM memories m WHERE m.hive = h.name) AS shared
-    FROM hives h ORDER BY h.ts DESC LIMIT 50
-  `);
+  const hiveByToken = db.prepare('SELECT * FROM hives WHERE token = ?');
+  const hiveByName = db.prepare('SELECT * FROM hives WHERE name = ?');
+  const insertHive = db.prepare('INSERT INTO hives (name, repo, token, ts) VALUES (?, ?, ?, ?)');
+  const insertMember = db.prepare('INSERT INTO members (hive, tag, ts) VALUES (?, ?, ?)');
+  const membersOf = db.prepare('SELECT tag FROM members WHERE hive = ? ORDER BY ts');
+  const openClaims = db.prepare('SELECT key, agent, title, ts FROM claims WHERE hive = ? ORDER BY ts DESC LIMIT 10');
 
   function counters(hive = 'default') {
     const ACTIVE_MS = 5 * 60 * 1000;
@@ -164,6 +179,7 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
       agents: agentsSeen.all(hive).map((a) => ({ name: a.agent, active: now - a.last_ts < ACTIVE_MS })),
       shared: countMemories.get(hive).n,
       deduped: countDedupes.get(hive).n,
+      claims: openClaims.all(hive),
     };
   }
 
@@ -184,7 +200,41 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
       upsertHive.run(name, repo, Date.now());
       return { name, repo };
     },
-    listHives: () => listHivesStmt.all(),
+    // Create a hive with its own token. Optional name; collisions get a short suffix.
+    createHive: (wantedName, randomUUID) => {
+      const base = sanitizeName(wantedName, '') || `hive-${randomUUID().slice(0, 4)}`;
+      let name = base;
+      for (let i = 2; hiveByName.get(name) && i < 50; i++) name = `${base}-${i}`.slice(0, 24);
+      const token = `hv_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
+      insertHive.run(name, null, token, Date.now());
+      return { name, token };
+    },
+    // null when unknown; the env HIVE_TOKEN maps to the default hive.
+    hiveForToken: (token) => {
+      if (!token) return null;
+      if (process.env.HIVE_TOKEN && token === process.env.HIVE_TOKEN) return 'default';
+      const row = hiveByToken.get(token);
+      return row ? row.name : null;
+    },
+    hiveInfo: (name) => hiveByName.get(name) || null,
+    // Reserve a unique member tag within a hive; suggests alternatives on collision.
+    claimTag: (hive, tag) => {
+      const t = sanitizeName(tag, '');
+      if (!t) return { ok: false, error: 'tag required' };
+      try {
+        insertMember.run(hive, t, Date.now());
+        return { ok: true, tag: t };
+      } catch {
+        const taken = membersOf.all(hive).map((m) => m.tag);
+        const suggestions = [];
+        for (let i = 2; suggestions.length < 3 && i < 30; i++) {
+          const s = `${t}-${i}`.slice(0, 24);
+          if (!taken.includes(s)) suggestions.push(s);
+        }
+        return { ok: false, taken: true, suggestions };
+      }
+    },
+    members: (hive) => membersOf.all(hive).map((m) => m.tag),
     latestQueen: (hive = 'default') => latestQueenStmt.get(hive) || null,
     recentEvents: (limit = 50, hive = 'default') => recentEventsStmt.all(hive, Math.min(limit, 200)).reverse(),
     setOnEvent: (fn) => { onEvent = fn; },

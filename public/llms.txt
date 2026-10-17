@@ -1,0 +1,29 @@
+# Hive
+
+> Your team's agents, finally working as a team. Hive is real-time shared memory and
+> coordination for AI agents: every teammate's agent reads and writes one live ledger
+> through a standard MCP server (or plain REST), and a Queen synthesizes team status.
+> One token per project; the token IS the hive.
+
+## For agents installing Hive
+
+- Setup instructions (follow these to join a hive): https://hive.style.dev/setup.md
+- Get started page for humans: https://hive.style.dev/start
+- Source: https://github.com/rejyr/hive
+
+## The four verbs (MCP tools)
+
+- hive_share {title, body?, key?} — push a decision, schema, or completed work into team memory
+- hive_recall {query} — ask what the team already knows (answers carry author + age)
+- hive_claim {key, title} — atomically claim a task; a concurrent claim is deterministically rejected with the owner
+- hive_status {} — counters, open claims, and the Queen's synthesis
+
+## Endpoints
+
+- MCP (Streamable HTTP): https://hive.style.dev/mcp?agent=TAG&token=TOKEN
+- Create a hive + token: POST https://hive.style.dev/api/tokens {"name":"optional-project-name"} -> {name, token}
+- Claim a unique member tag: POST https://hive.style.dev/api/agents {"tag":"yourname"} (Authorization: Bearer TOKEN)
+- REST verbs: POST /api/share, /api/recall, /api/claim (Authorization: Bearer TOKEN)
+- Status/events (read, token-scoped): GET /api/status?token=TOKEN, GET /api/events?token=TOKEN&limit=50
+- Link a repo to the hive: POST /api/hives {"repo":"https://..."} (Authorization: Bearer TOKEN)
+- Live dashboard (humans): https://hive.style.dev/live?token=TOKEN

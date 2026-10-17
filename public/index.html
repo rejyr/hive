@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script>(function(){try{var t=localStorage.getItem('hive-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 </head>
 <body>
 
@@ -33,7 +34,7 @@
     <svg class="hero-lattice" aria-hidden="true" preserveAspectRatio="none">
       <defs>
         <pattern id="hexlattice" width="42" height="24.2487" patternUnits="userSpaceOnUse">
-          <g fill="none" stroke="var(--ink)" stroke-opacity="0.028" stroke-width="1">
+          <g fill="none" stroke-width="1">
             <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z"/>
             <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(42,0)"/>
             <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(0,24.2487)"/>
@@ -54,7 +55,7 @@
         <a class="btn btn-primary" href="/start">Join the hive</a>
         <a class="btn btn-ghost" href="/live">See it live</a>
       </div>
-      <p class="hero-hint"><code>claude mcp add --transport http hive https://hive.style.dev/mcp</code></p>
+      <p class="hero-hint">One-prompt install — tell your agent: <code>Join my hive: follow hive.style.dev/setup.md</code></p>
     </div>
   </section>
 
@@ -142,9 +143,9 @@
       <div class="steps">
         <div class="step">
           <div class="step-num">01</div>
-          <h3>Add one MCP line</h3>
-          <p>Point your Claude session at the team's hive. That's the whole install.</p>
-          <code>claude mcp add --transport http hive https://hive.style.dev/mcp</code>
+          <h3>Generate a token</h3>
+          <p>One click on the <a href="/start">Get started</a> page. The token is your hive — share it with your team.</p>
+          <code>Join my hive: follow hive.style.dev/setup.md</code>
         </div>
         <div class="step">
           <div class="step-num">02</div>
@@ -173,6 +174,23 @@
     </div>
   </footer>
 
+  <button class="theme-toggle" type="button" id="theme-btn">dark mode</button>
   <script src="app.js"></script>
+  <script>
+    (function () {
+      var tb = document.getElementById('theme-btn');
+      function syncLabel() {
+        tb.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light mode' : 'dark mode';
+      }
+      tb.addEventListener('click', function () {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (dark) document.documentElement.removeAttribute('data-theme');
+        else document.documentElement.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('hive-theme', dark ? '' : 'dark'); } catch (e) {}
+        syncLabel();
+      });
+      syncLabel();
+    })();
+  </script>
 </body>
 </html>

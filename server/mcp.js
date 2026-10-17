@@ -20,8 +20,9 @@ function buildServer(ledger, agent, hive, authed = true) {
     authed
       ? fn(args)
       : text(
-          'Hive: your team token is wrong or missing, so nothing was shared or read. ' +
-            'Fix the token= value in your hive MCP URL (ask a teammate for the team token), then reconnect the MCP server (/mcp in Claude Code).'
+          'Hive: your token is wrong or missing, so nothing was shared or read. ' +
+            'Ask a teammate for your hive token (or generate one at https://hive.style.dev/start), ' +
+            'fix the token= value in your hive MCP URL, then reconnect the MCP server (/mcp in Claude Code).'
         );
 
   server.registerTool(
@@ -118,8 +119,9 @@ export function createMcpHandler(ledger) {
     // Primary: Authorization header. Fallback: ?token= — same shared team token,
     // for MCP clients that drop custom headers.
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || url.searchParams.get('token') || '';
-    // Never 401 here — see guard() above.
-    const authed = !process.env.HIVE_TOKEN || token === process.env.HIVE_TOKEN;
+    // The token names the hive. Never 401 here — see guard() above.
+    const tokenHive = ledger.hiveForToken(token);
+    const authed = Boolean(tokenHive);
 
     const body = await readBody(req);
     const sessionId = req.headers['mcp-session-id'];
@@ -127,7 +129,10 @@ export function createMcpHandler(ledger) {
 
     if (!transport) {
       const agent = sanitizeName(url.searchParams.get('agent'), 'anonymous');
-      const hive = sanitizeName(url.searchParams.get('hive'), 'default');
+      // Custom tokens pin the hive; the env team token may still pick one via &hive=.
+      const hive = !tokenHive || tokenHive === 'default'
+        ? sanitizeName(url.searchParams.get('hive'), 'default')
+        : tokenHive;
       if (body && isInitializeRequest(body)) {
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
