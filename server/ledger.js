@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 
-const VERBS = new Set(['SHARE', 'RECALL', 'CLAIM', 'DEDUPE', 'QUEEN']);
+const VERBS = new Set(['SHARE', 'RECALL', 'CLAIM', 'DEDUPE', 'QUEEN', 'JOIN']);
 
 // Hive names and agent names share the same shape: short kebab/word tokens.
 export function sanitizeName(s, fallback) {
@@ -173,10 +173,18 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
   function counters(hive = 'default') {
     const ACTIVE_MS = 5 * 60 * 1000;
     const now = Date.now();
+    // Presence = everyone who claimed a tag, plus anyone seen in events —
+    // a freshly joined member shows up before their agent does anything.
+    const seen = new Map(
+      agentsSeen.all(hive).map((a) => [a.agent, { name: a.agent, active: now - a.last_ts < ACTIVE_MS }])
+    );
+    for (const m of membersOf.all(hive)) {
+      if (!seen.has(m.tag)) seen.set(m.tag, { name: m.tag, active: false });
+    }
     return {
       type: 'counters',
       hive,
-      agents: agentsSeen.all(hive).map((a) => ({ name: a.agent, active: now - a.last_ts < ACTIVE_MS })),
+      agents: [...seen.values()],
       shared: countMemories.get(hive).n,
       deduped: countDedupes.get(hive).n,
       claims: openClaims.all(hive),
@@ -223,6 +231,7 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
       if (!t) return { ok: false, error: 'tag required' };
       try {
         insertMember.run(hive, t, Date.now());
+        addEvent({ hive, agent: t, verb: 'JOIN', title: `${t} joined the hive` });
         return { ok: true, tag: t };
       } catch {
         const taken = membersOf.all(hive).map((m) => m.tag);

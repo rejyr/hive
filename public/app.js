@@ -11,7 +11,8 @@
   var root = document.querySelector('[data-hive-root]') || document.body;
   var COMPACT = root.getAttribute('data-variant') === 'compact';
   var MAX_ROWS = COMPACT ? 6 : 10;
-  var MOCK = new URLSearchParams(location.search).get('mock') === '1';
+  var MOCK = new URLSearchParams(location.search).get('mock') === '1' ||
+    root.getAttribute('data-mock') === '1';
   var HIVE = (new URLSearchParams(location.search).get('hive') || 'default')
     .toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'default';
   var TOKEN = new URLSearchParams(location.search).get('token') || '';
@@ -486,7 +487,7 @@
   }
 
   function startMock() {
-    setConn('live', 'mock');
+    setConn('live', 'demo');
     var now = Date.now();
     // seed a believable backfill: every verb visible, one QUEEN for the panel
     var seed = [

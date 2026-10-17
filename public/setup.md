@@ -10,7 +10,8 @@ Ask your human for the hive token (looks like `hv_...`). If they want a brand-ne
     curl -X POST https://hive.style.dev/api/tokens -H "content-type: application/json" -d '{"name":"PROJECT_NAME"}'
 
 Response: `{ "name": "<hive>", "token": "hv_..." }`. Treat the token as a secret —
-never commit it, never print it into public files. Everyone on the team uses the same token.
+never commit it, never print it into public files. **Everyone on the team uses the SAME
+token** — only one person generates; generating again creates a separate hive.
 
 ## 2. Claim a unique tag
 
@@ -41,7 +42,14 @@ Call the `hive_status` tool (after restarting/reconnecting the agent so the serv
 It should answer with agents, items shared, and the Queen's synthesis. Tell your human:
 "you're live on the dashboard at https://hive.style.dev/live?token=TOKEN".
 
-## 5. Etiquette (follow for the rest of this project)
+## 5. Brief the Queen (first member only)
+
+If nobody has yet, share the project description so the Queen can direct the team:
+call `hive_share` with `key: "brief"`, title = one-line project description, body = the
+goals and the pieces of work. The Queen folds the brief into every status and points
+agents at unclaimed work.
+
+## 6. Etiquette (follow for the rest of this project)
 
 - BEFORE starting any shared task: `hive_claim` with a stable kebab-case key
   (`task:dashboard`). If REJECTED, do not do the work — `hive_recall` the owner's

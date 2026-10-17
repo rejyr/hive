@@ -30,7 +30,8 @@ function buildServer(ledger, agent, hive, authed = true, token = '') {
     {
       description:
         "Share completed work, a decision, or context with the team's hive so every teammate's agent can use it. " +
-        'Use a stable key like "decision:api-schema" or "task:deploy" when the item has an identity.',
+        'Use a stable key like "decision:api-schema" or "task:deploy" when the item has an identity. ' +
+        "Share the project description with key 'brief' — the Queen uses it to direct the team and assign unclaimed work.",
       inputSchema: {
         title: z.string().min(1).describe('One-line summary of what was done or decided'),
         body: z.string().optional().describe('Details teammates will need'),

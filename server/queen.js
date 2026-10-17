@@ -1,7 +1,8 @@
 const SYSTEM_PROMPT =
-  'You are the Queen of Hive, synthesizing the work of a team of humans whose AI agents share one ledger. ' +
+  'You are the Queen of Hive, coordinating a team of humans whose AI agents share one ledger. ' +
   'In 4-6 short sentences, plain prose, no markdown, no preamble: what is DONE, what is IN PROGRESS and by whom, ' +
-  'what is NEXT, and any conflicts or duplicates prevented.';
+  "and any conflicts or duplicates prevented. If a project brief (key 'brief') is in the ledger, direct the team: " +
+  'name who should take which unclaimed piece next so no work is duplicated.';
 
 // Deterministic synthesis straight from the ledger — the Queen's model-free voice.
 // Real data only: active agents, freshest share per agent, open claims, counters.
@@ -12,6 +13,11 @@ export function buildDigest(ledger, hive = 'default') {
   if (!events.length) return null;
   const mins = (ts) => Math.max(0, Math.round((Date.now() - ts) / 60000));
   const parts = [];
+  // A shared item keyed 'brief' is the project definition — the Queen leads with it.
+  const brief = ledger.db
+    .prepare("SELECT * FROM memories WHERE hive = ? AND key LIKE 'brief%' ORDER BY ts DESC LIMIT 1")
+    .get(hive);
+  if (brief) parts.push(`Project: ${brief.title}${brief.body ? ` — ${String(brief.body).slice(0, 220)}` : ''}`);
   const active = s.agents.filter((a) => a.active).map((a) => a.name);
   parts.push(
     `${active.length || s.agents.length} agent${active.length === 1 ? '' : 's'} in the hive` +
@@ -27,6 +33,7 @@ export function buildDigest(ledger, hive = 'default') {
     .all(hive)
     .map((c) => `${c.title} (${c.agent})`);
   if (claims.length) parts.push(`In progress: ${claims.join('; ')}.`);
+  if (brief) parts.push('Anything in the brief nobody has claimed is up for grabs — claim before starting.');
   return parts.join(' ');
 }
 
