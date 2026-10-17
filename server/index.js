@@ -44,6 +44,7 @@ app.post('/api/reset', auth, (c) => {
 });
 
 app.get('/live', serveStatic({ path: './public/live.html' }));
+app.get('/start', serveStatic({ path: './public/start.html' }));
 app.use('/*', serveStatic({ root: './public' }));
 
 const listener = getRequestListener(app.fetch);

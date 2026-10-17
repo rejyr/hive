@@ -380,8 +380,11 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
 .badge-QUEEN  { border-color: var(--dark-ink); color: var(--dark-ink); }
 
 /* yellow rule: outlined-honey badges never appear on light backgrounds;
-   on light chips QUEEN flips to ink */
-.chip .badge-QUEEN { border-color: var(--ink); color: var(--ink); }
+   on light chips outlined badges flip to ink */
+.chip .badge-QUEEN, .chip .badge-RECALL, .chip .badge-CLAIM {
+  border-color: var(--ink);
+  color: var(--ink);
+}
 
 /* ---------- shared: hex avatars (clip-path — sanctioned hexagon use #3) ---------- */
 
@@ -586,6 +589,78 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
   color: var(--ink-2-dark);
 }
 
+/* ---------- get started page ---------- */
+
+.page-hero {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 72px 16px 40px;
+  text-align: center;
+}
+.page-hero h1 { font-size: clamp(34px, 5.5vw, 56px); margin-top: 16px; }
+.page-hero p {
+  max-width: 540px;
+  margin: 20px auto 0;
+  font-size: 18px;
+  color: var(--ink-2);
+}
+
+.setup {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 16px 80px;
+  display: grid;
+  gap: 24px;
+}
+
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px 26px 26px;
+}
+.setup-card h3 { font-size: 20px; margin: 8px 0 8px; }
+.setup-card > p { color: var(--ink-2); font-size: 15px; }
+.setup-card a { color: var(--ink); }
+
+.codeline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  background: var(--honey-wash);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px 9px 12px;
+}
+.codeline code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+}
+.codeline .btn { flex: none; background: var(--surface); }
+
+.setup-note {
+  margin-top: 12px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.setup-note code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--honey-wash);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+
+.verbs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 900px) {
@@ -597,6 +672,8 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
 
 @media (max-width: 560px) {
   .hero-inner { padding-top: 88px; padding-bottom: 72px; }
+  .verbs { grid-template-columns: minmax(0, 1fr); }
+  .codeline { flex-wrap: wrap; }
   .row-key { display: none; }
   .band-live { padding: 16px 16px 4px; }
   .dash-header .counters { margin-left: 0; }

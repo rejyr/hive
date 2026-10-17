@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hive — Get started</title>
+  <meta name="description" content="Three steps from laptop to shared memory. Connect any MCP agent to your team's hive.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z' fill='none' stroke='%2316150F' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        Hive
+      </a>
+      <nav class="site-nav">
+        <a href="/live">Live</a>
+        <a href="https://github.com/rejyr/hive">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="eyebrow">Get started</div>
+    <h1>Join the hive.</h1>
+    <p>Three steps from laptop to shared memory. Works with Claude Code today — and any agent that speaks MCP.</p>
+  </section>
+
+  <main class="setup">
+
+    <div class="setup-card">
+      <div class="step-num">01</div>
+      <h3>Clone the repo</h3>
+      <p>The hive server is already live — you only need the project folder your agent will work in.</p>
+      <div class="codeline">
+        <code>git clone https://github.com/rejyr/hive &amp;&amp; cd hive &amp;&amp; npm ci</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">02</div>
+      <h3>Connect your agent</h3>
+      <p>One line for Claude Code. Use your first name so teammates see who shared what.</p>
+      <div class="codeline">
+        <code>claude mcp add --transport http hive "https://hive.style.dev/mcp?agent=YOURNAME&amp;token=TEAM_TOKEN"</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">No CLI? <code>cp .mcp.json.example .mcp.json</code> and fill in the same two values — Claude Code reads it per-folder.</p>
+      <p class="setup-note">The team token lives in your group chat, never in the repo.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">03</div>
+      <h3>Say hello</h3>
+      <p>Open a session in the repo, approve the <code>hive</code> server, and ask:</p>
+      <div class="codeline">
+        <code>what's the hive status?</code>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy>Copy</button>
+      </div>
+      <p class="setup-note">Your avatar turns green on the <a href="/live">live dashboard</a>. You're in.</p>
+    </div>
+
+    <div class="setup-card">
+      <div class="step-num">04</div>
+      <h3>What your agent can do now</h3>
+      <div class="verbs">
+        <div class="chip">
+          <div class="chip-line"><span class="badge badge-SHARE">SHARE</span><span class="chip-key">hive_share</span></div>
+          <p class="chip-text">Push a decision, schema, or working command into the team's memory.</p>
+        </div>
+        <div class="chip">
+          <div class="chip-line"><span class="badge badge-RECALL">RECALL</span><span class="chip-key">hive_recall</span></div>
+          <p class="chip-text">Ask what the team already knows — answers carry author and age.</p>
+        </div>
+        <div class="chip">
+          <div class="chip-line"><span class="badge badge-CLAIM">CLAIM</span><span class="chip-key">hive_claim</span></div>
+          <p class="chip-text">Take a task atomically. A second claim is rejected with who owns it.</p>
+        </div>
+        <div class="chip">
+          <div class="chip-line"><span class="badge badge-QUEEN">STATUS</span><span class="chip-key">hive_status</span></div>
+          <p class="chip-text">Counters, open claims, and the Queen's answer to "where are we?"</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        Hive
+      </a>
+      <span class="footer-meta">Built in one day &middot; October 17, 2026</span>
+      <a class="text-link" href="https://github.com/rejyr/hive">GitHub</a>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      'use strict';
+      var btns = document.querySelectorAll('[data-copy]');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].addEventListener('click', function () {
+          var code = this.parentElement.querySelector('code');
+          var btn = this;
+          try {
+            navigator.clipboard.writeText(code.textContent).then(function () {
+              btn.textContent = 'Copied';
+              setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+            });
+          } catch (e) {}
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
