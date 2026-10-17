@@ -649,6 +649,7 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
   padding: 22px 24px;
   position: sticky;
   top: 24px;
+  z-index: 2; /* paint above the work panel's positioned avatars scrolling beneath */
 }
 .queen-head {
   display: flex;
