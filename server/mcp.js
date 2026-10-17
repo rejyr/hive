@@ -19,7 +19,7 @@ function buildServer(ledger, agent) {
         "Share completed work, a decision, or context with the team's hive so every teammate's agent can use it. " +
         'Use a stable key like "decision:api-schema" or "task:deploy" when the item has an identity.',
       inputSchema: {
-        title: z.string().describe('One-line summary of what was done or decided'),
+        title: z.string().min(1).describe('One-line summary of what was done or decided'),
         body: z.string().optional().describe('Details teammates will need'),
         key: z.string().optional().describe('Stable identity key, e.g. decision:api-schema'),
       },
@@ -117,18 +117,30 @@ export function createMcpHandler(ledger) {
     let transport = sessionId ? transports.get(sessionId) : undefined;
 
     if (!transport) {
-      if (!(body && isInitializeRequest(body))) {
-        // 404 per MCP spec: tells the client its session is gone (e.g. server restarted)
-        // so it transparently re-initializes instead of erroring out.
-        res.writeHead(404, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'session not found; re-initialize' }, id: null }));
+      const agent = (url.searchParams.get('agent') || 'anonymous').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'anonymous';
+      if (body && isInitializeRequest(body)) {
+        transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (id) => transports.set(id, transport),
+        });
+      } else if (sessionId) {
+        // Server restarted and the client kept its session id. Claude Code does not
+        // reliably re-initialize on a 404 (known client regressions), so adopt the
+        // session instead of rejecting it. Internals match the lockfile-pinned SDK.
+        const sid = String(sessionId);
+        transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => sid });
+        try {
+          transport._webStandardTransport.sessionId = sid;
+          transport._webStandardTransport._initialized = true;
+        } catch (e) {
+          console.error('[mcp] session adoption unavailable:', e.message);
+        }
+        transports.set(sid, transport);
+      } else {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32000, message: 'no session; initialize first' }, id: null }));
         return;
       }
-      const agent = (url.searchParams.get('agent') || 'anonymous').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24) || 'anonymous';
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (id) => transports.set(id, transport),
-      });
       transport.onclose = () => {
         if (transport.sessionId) transports.delete(transport.sessionId);
       };

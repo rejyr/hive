@@ -65,15 +65,19 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+wss.on('error', (e) => console.error('[wss]', e));
+
 function broadcast(obj) {
   const s = JSON.stringify(obj);
-  for (const client of wss.clients) if (client.readyState === 1) client.send(s);
+  // callback form: a failed send surfaces there instead of as an unhandled 'error' that kills the process
+  for (const client of wss.clients) if (client.readyState === 1) client.send(s, () => {});
 }
 function broadcastCounters() {
   broadcast(ledger.counters());
 }
 
 wss.on('connection', (ws) => {
+  ws.on('error', () => {}); // dead clients on hostile wifi must not crash the process
   ws.send(JSON.stringify(ledger.counters()));
   const queen = ledger.latestQueen();
   if (queen) ws.send(JSON.stringify({ type: 'event', event: queen }));

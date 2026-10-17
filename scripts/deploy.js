@@ -1,18 +1,23 @@
 // Deploy Hive to a Freestyle VM at https://$HIVE_DOMAIN (docs/ARCHITECTURE.md §Deploy).
-// Needs FREESTYLE_API_KEY in .env (created via: npx freestyle login && freestyle billing redeem && freestyle tokens create).
-// Usage: node scripts/deploy.js            — full deploy (create VM if missing, upload, systemd, TLS, health)
-//        node scripts/deploy.js --code     — code-only redeploy (upload + restart, seconds)
+// Needs FREESTYLE_API_KEY in .env (npx freestyle login → billing redeem → tokens create).
+// Usage: node scripts/deploy.js          — full deploy (VM if missing, upload, systemd, TLS, health)
+//        node scripts/deploy.js --code   — code-only redeploy (upload + restart, seconds)
 import 'dotenv/config';
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 
 const DOMAIN = process.env.HIVE_DOMAIN || 'hive.style.dev';
 const SLUG = 'hive';
 const PORT = 3000;
 const CODE_ONLY = process.argv.includes('--code');
+const cli = 'npx -y freestyle@0.2.20'; // pinned: 'latest' re-resolves per call and could change mid-demo
 
 if (!process.env.FREESTYLE_API_KEY) {
   console.error('FREESTYLE_API_KEY missing from .env — run the login/redeem/token steps in docs/ARCHITECTURE.md first.');
+  process.exit(1);
+}
+if (!existsSync('server/index.js')) {
+  console.error('Run from the repo root.');
   process.exit(1);
 }
 
@@ -20,75 +25,87 @@ function sh(cmd, opts = {}) {
   console.log(`\n$ ${cmd}`);
   return execSync(cmd, { stdio: opts.capture ? 'pipe' : 'inherit', encoding: 'utf8', env: process.env, ...opts });
 }
-// Everything the VM needs to run the server; .env is NOT uploaded (vm gets its own, below).
-function makeTarball() {
-  sh(`tar -czf hive.tar.gz --exclude node_modules --exclude .git --exclude .env --exclude '*.db*' server public scripts docs package.json package-lock.json CLAUDE.md AGENTS.md README.md .env.example`);
-}
-
-const cli = `npx -y freestyle@latest`;
 
 async function ensureVm() {
-  const { Freestyle } = await import('freestyle').catch(() => import('freestyle-sandboxes')).catch(() => ({}));
-  if (!Freestyle) {
-    console.log('freestyle SDK not installed — trying CLI for VM create (run: npm i -D freestyle)');
-    sh(`${cli} vm create --slug ${SLUG}`, { capture: false });
-    return null;
-  }
-  const fs = new Freestyle();
   try {
-    const vm = await fs.vms.create({
-      slug: SLUG,
-      idleTimeoutSeconds: null, // never pause — idle pause kills the demo
-      firewall: { rules: [{ action: 'allow', source: {}, destination: { public: true } }] },
-    });
-    console.log(`VM created: ${vm.id || SLUG}`);
-    return { fs, vm };
-  } catch (err) {
-    console.log(`VM create: ${err.message} (assuming '${SLUG}' already exists — continuing)`);
-    return { fs, vm: null };
-  }
-}
-
-async function ensureTls(ctx) {
-  try {
-    if (ctx?.fs) {
-      await ctx.fs.tls.rules.create({
-        action: 'allow',
-        domain: DOMAIN,
-        source: { public: true },
-        destination: { vm: SLUG, port: PORT },
+    const { Freestyle } = await import('freestyle');
+    const fs = new Freestyle();
+    try {
+      const created = await fs.vms.create({
+        slug: SLUG,
+        firewall: { rules: [{ action: 'allow', source: {}, destination: { public: true } }] },
       });
-      console.log(`TLS: https://${DOMAIN} -> ${SLUG}:${PORT}`);
-      return;
+      console.log(`VM created: ${created.vmId || SLUG}`);
+    } catch (err) {
+      console.log(`VM create: ${err.message} (assuming '${SLUG}' exists — continuing)`);
     }
-  } catch (err) {
-    console.log(`TLS via SDK: ${err.message} — trying CLI`);
-  }
-  try {
-    sh(`${cli} tls create --domain ${DOMAIN} --from public --to vm=${SLUG},port=${PORT}`);
   } catch {
-    console.log('TLS rule may already exist — continuing');
+    console.log('freestyle SDK unavailable — creating via CLI (--no-ssh avoids the interactive shell)');
+    try {
+      sh(`${cli} vm create --slug ${SLUG} --no-ssh`);
+    } catch {
+      console.log(`VM create via CLI failed (may already exist) — continuing`);
+    }
+  }
+  // Never idle-pause: -1 disables the timeout (documented on vm update; '=' so -1 isn't read as a flag).
+  try {
+    sh(`${cli} vm update ${SLUG} --idle-timeout-seconds=-1`);
+  } catch {
+    console.log('idle-timeout update failed — VERIFY in dash.freestyle.sh that the VM cannot pause');
   }
 }
 
 function uploadAndStart() {
-  makeTarball();
+  sh(`tar -czf hive.tar.gz --exclude node_modules --exclude .git --exclude .env --exclude '*.db*' server public scripts docs package.json package-lock.json CLAUDE.md AGENTS.md README.md .env.example`);
   sh(`${cli} vm scp hive.tar.gz ${SLUG}:/root/hive.tar.gz`);
-  // Build the VM-side .env from local .env (token + queen config travel; freestyle key does NOT).
+
+  // VM-side .env: write locally, scp it — never printf env through two shells.
   const env = readFileSync('.env', 'utf8')
     .split('\n')
     .filter((l) => /^(PORT|HIVE_TOKEN|HIVE_DB_PATH|QUEEN_BASE_URL|QUEEN_API_KEY|QUEEN_MODEL)=/.test(l))
-    .join('\n');
-  const setup = [
-    `mkdir -p /srv/hive`,
-    `tar -xzf /root/hive.tar.gz -C /srv/hive`,
-    `cd /srv/hive && npm ci --omit=dev --no-audit --no-fund`,
-    `printf '%s\\n' ${JSON.stringify(env)} > /srv/hive/.env`,
-    `printf '[Unit]\\nDescription=hive\\nAfter=network.target\\n[Service]\\nWorkingDirectory=/srv/hive\\nExecStart=/usr/bin/env node server/index.js\\nRestart=always\\nEnvironmentFile=/srv/hive/.env\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/hive.service`,
-    `systemctl daemon-reload && systemctl enable --now hive && systemctl restart hive`,
-    `sleep 1 && systemctl --no-pager status hive | head -5`,
-  ].join(' && ');
-  sh(`${cli} vm exec ${SLUG} ${JSON.stringify(setup)}`);
+    .join('\n') + '\n';
+  writeFileSync('.env.vm', env);
+  sh(`${cli} vm scp .env.vm ${SLUG}:/root/hive.env`);
+
+  // Provisioning runs as a real script on the VM: `vm exec <vm> -- <cmd>` is the documented form.
+  writeFileSync('vm-setup.sh', `#!/bin/bash
+set -euo pipefail
+mkdir -p /srv/hive
+tar -xzf /root/hive.tar.gz -C /srv/hive
+mv /root/hive.env /srv/hive/.env
+cd /srv/hive && npm ci --omit=dev --no-audit --no-fund
+cat > /etc/systemd/system/hive.service <<'UNIT'
+[Unit]
+Description=hive
+After=network.target
+[Service]
+WorkingDirectory=/srv/hive
+EnvironmentFile=/srv/hive/.env
+ExecStart=/usr/local/bin/node server/index.js
+Restart=always
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable hive
+systemctl restart hive
+sleep 1
+systemctl --no-pager status hive | head -5
+wc -l /srv/hive/.env
+`);
+  sh(`${cli} vm scp vm-setup.sh ${SLUG}:/root/vm-setup.sh`);
+  sh(`${cli} vm exec ${SLUG} -- bash /root/vm-setup.sh`);
+  rmSync('.env.vm', { force: true });
+  rmSync('vm-setup.sh', { force: true });
+}
+
+function ensureTls() {
+  // CLI form verified against docs; the SDK call shape is easy to get wrong, so CLI only.
+  try {
+    sh(`${cli} tls create --domain ${DOMAIN} --from public --to vm=${SLUG},port=${PORT}`);
+  } catch {
+    console.log('TLS rule create failed (may already exist) — continuing');
+  }
 }
 
 async function health() {
@@ -102,19 +119,15 @@ async function health() {
     } catch {}
     await new Promise((res) => setTimeout(res, 3000));
   }
-  console.error(`\nhttps://${DOMAIN}/health not responding — check: ${cli} vm ssh ${SLUG} then journalctl -u hive -f`);
+  console.error(`\nhttps://${DOMAIN}/health not responding — debug: ${cli} vm ssh ${SLUG} ; journalctl -u hive -f`);
   return false;
 }
 
-if (!existsSync('server/index.js')) {
-  console.error('Run from the repo root.');
-  process.exit(1);
-}
 if (CODE_ONLY) {
   uploadAndStart();
 } else {
-  const ctx = await ensureVm();
+  await ensureVm();
   uploadAndStart();
-  await ensureTls(ctx);
+  ensureTls();
 }
 process.exit((await health()) ? 0 : 1);

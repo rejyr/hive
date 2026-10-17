@@ -52,7 +52,8 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
   `);
 
   function share({ agent, title, body = null, key = null }) {
-    const memKey = key || `note:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    const memKey = key || `note:${slug || Date.now()}`;
     upsertMemory.run(memKey, agent, Date.now(), title, body);
     return addEvent({ agent, verb: 'SHARE', key: memKey, title, body });
   }

@@ -24,7 +24,7 @@ export async function maybeSynthesize(ledger, { force = false } = {}) {
 
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    const timer = setTimeout(() => ctrl.abort(), 6_000); // demo gate is <5s; degrade fast to the last synthesis
     const r = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       signal: ctrl.signal,
