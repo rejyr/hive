@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 
 const DOMAIN = process.env.HIVE_DOMAIN || 'hive.style.dev';
-const SLUG = 'hive';
+const SLUG = process.env.HIVE_VM || 'hive'; // HIVE_VM: id or slug of an existing VM to deploy onto
 const PORT = 3000;
 const CODE_ONLY = process.argv.includes('--code');
 const cli = 'npx -y freestyle@0.2.20'; // pinned: 'latest' re-resolves per call and could change mid-demo
@@ -27,7 +27,9 @@ function sh(cmd, opts = {}) {
 }
 
 async function ensureVm() {
-  try {
+  if (process.env.HIVE_VM) {
+    console.log(`Using existing VM ${SLUG} (HIVE_VM set — skipping create)`);
+  } else try {
     const { Freestyle } = await import('freestyle');
     const fs = new Freestyle();
     try {
@@ -57,7 +59,7 @@ async function ensureVm() {
 
 function uploadAndStart() {
   sh(`tar -czf hive.tar.gz --exclude node_modules --exclude .git --exclude .env --exclude '*.db*' server public scripts docs package.json package-lock.json CLAUDE.md AGENTS.md README.md .env.example`);
-  sh(`${cli} vm scp hive.tar.gz ${SLUG}:/root/hive.tar.gz`);
+  sh(`${cli} vm scp hive.tar.gz ${SLUG}:/home/ubuntu/hive.tar.gz`);
 
   // VM-side .env: write locally, scp it — never printf env through two shells.
   const env = readFileSync('.env', 'utf8')
@@ -65,14 +67,14 @@ function uploadAndStart() {
     .filter((l) => /^(PORT|HIVE_TOKEN|HIVE_DB_PATH|QUEEN_BASE_URL|QUEEN_API_KEY|QUEEN_MODEL)=/.test(l))
     .join('\n') + '\n';
   writeFileSync('.env.vm', env);
-  sh(`${cli} vm scp .env.vm ${SLUG}:/root/hive.env`);
+  sh(`${cli} vm scp .env.vm ${SLUG}:/home/ubuntu/hive.env`);
 
   // Provisioning runs as a real script on the VM: `vm exec <vm> -- <cmd>` is the documented form.
   writeFileSync('vm-setup.sh', `#!/bin/bash
 set -euo pipefail
 mkdir -p /srv/hive
-tar -xzf /root/hive.tar.gz -C /srv/hive
-mv /root/hive.env /srv/hive/.env
+tar -xzf /home/ubuntu/hive.tar.gz -C /srv/hive
+mv /home/ubuntu/hive.env /srv/hive/.env
 cd /srv/hive && npm ci --omit=dev --no-audit --no-fund
 cat > /etc/systemd/system/hive.service <<'UNIT'
 [Unit]
@@ -93,8 +95,8 @@ sleep 1
 systemctl --no-pager status hive | head -5
 wc -l /srv/hive/.env
 `);
-  sh(`${cli} vm scp vm-setup.sh ${SLUG}:/root/vm-setup.sh`);
-  sh(`${cli} vm exec ${SLUG} -- bash /root/vm-setup.sh`);
+  sh(`${cli} vm scp vm-setup.sh ${SLUG}:/home/ubuntu/vm-setup.sh`);
+  sh(`${cli} vm exec ${SLUG} -- sudo bash /home/ubuntu/vm-setup.sh`);
   rmSync('.env.vm', { force: true });
   rmSync('vm-setup.sh', { force: true });
 }
