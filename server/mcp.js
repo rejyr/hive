@@ -10,8 +10,19 @@ function text(obj) {
   return { content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2) }] };
 }
 
-function buildServer(ledger, agent, hive) {
+function buildServer(ledger, agent, hive, authed = true) {
   const server = new McpServer({ name: 'hive', version: '0.1.0' });
+
+  // Wrong/missing token: the connection WORKS, but every tool explains the fix.
+  // Returning 401 instead would send MCP clients into an OAuth discovery dance
+  // that ends in a confusing "dynamic client registration 404".
+  const guard = (fn) => async (args) =>
+    authed
+      ? fn(args)
+      : text(
+          'Hive: your team token is wrong or missing, so nothing was shared or read. ' +
+            'Fix the token= value in your hive MCP URL (ask a teammate for the team token), then reconnect the MCP server (/mcp in Claude Code).'
+        );
 
   server.registerTool(
     'hive_share',
@@ -25,7 +36,7 @@ function buildServer(ledger, agent, hive) {
         key: z.string().optional().describe('Stable identity key, e.g. decision:api-schema'),
       },
     },
-    async ({ title, body, key }) => text(ledger.share({ hive, agent, title, body, key }))
+    guard(async ({ title, body, key }) => text(ledger.share({ hive, agent, title, body, key })))
   );
 
   server.registerTool(
@@ -35,7 +46,7 @@ function buildServer(ledger, agent, hive) {
         "Ask the hive what the team already knows. Searches every teammate's shared context, decisions, and completed work.",
       inputSchema: { query: z.string().describe('What you need to know, e.g. "api schema" or "deploy"') },
     },
-    async ({ query }) => {
+    guard(async ({ query }) => {
       const hits = ledger.recall({ hive, agent, query });
       if (!hits.length) return text('No shared context matches. The team has not shared anything about this yet.');
       return text(
@@ -43,7 +54,7 @@ function buildServer(ledger, agent, hive) {
           .map((h) => `• [${h.key}] ${h.title} — shared by ${h.agent}, ${Math.round((Date.now() - h.ts) / 60000)} min ago${h.body ? `\n  ${h.body}` : ''}`)
           .join('\n')
       );
-    }
+    })
   );
 
   server.registerTool(
@@ -57,14 +68,14 @@ function buildServer(ledger, agent, hive) {
         title: z.string().describe('What the task is'),
       },
     },
-    async ({ key, title }) => {
+    guard(async ({ key, title }) => {
       const r = ledger.claim({ hive, agent, key, title });
       if (r.ok) return text(`Claimed ${key}. It is yours — the team sees this.`);
       return text(
         `REJECTED — already handled by ${r.claimed_by} (${Math.round((Date.now() - r.ts) / 60000)} min ago). ` +
           `What they did: ${r.what_they_did}. Do NOT redo this; build on it or take the next task.`
       );
-    }
+    })
   );
 
   server.registerTool(
@@ -73,14 +84,14 @@ function buildServer(ledger, agent, hive) {
       description: "Team status: who is in the hive, what is shared, duplicates prevented, and the Queen's synthesis of where the team is.",
       inputSchema: {},
     },
-    async () => {
+    guard(async () => {
       const queen = await maybeSynthesize(ledger, { hive });
       const s = ledger.status(hive);
       const agents = s.agents.map((a) => `${a.name}${a.active ? ' (active)' : ''}`).join(', ') || 'none yet';
       return text(
         `Agents: ${agents}\nItems shared: ${s.shared} · Duplicates prevented: ${s.deduped}\n\nWhere are we (Queen):\n${queen?.body || buildDigest(ledger, hive) || 'The hive is empty — share something.'}`
       );
-    }
+    })
   );
 
   return server;
@@ -107,11 +118,8 @@ export function createMcpHandler(ledger) {
     // Primary: Authorization header. Fallback: ?token= — same shared team token,
     // for MCP clients that drop custom headers.
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || url.searchParams.get('token') || '';
-    if (process.env.HIVE_TOKEN && token !== process.env.HIVE_TOKEN) {
-      res.writeHead(401, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32001, message: 'unauthorized' }, id: null }));
-      return;
-    }
+    // Never 401 here — see guard() above.
+    const authed = !process.env.HIVE_TOKEN || token === process.env.HIVE_TOKEN;
 
     const body = await readBody(req);
     const sessionId = req.headers['mcp-session-id'];
@@ -146,7 +154,7 @@ export function createMcpHandler(ledger) {
       transport.onclose = () => {
         if (transport.sessionId) transports.delete(transport.sessionId);
       };
-      await buildServer(ledger, agent, hive).connect(transport);
+      await buildServer(ledger, agent, hive, authed).connect(transport);
     }
 
     await transport.handleRequest(req, res, body);

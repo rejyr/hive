@@ -513,6 +513,39 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
   white-space: nowrap;
 }
 
+.feed-row { cursor: pointer; }
+.feed-row.open { flex-wrap: wrap; }
+.row-detail {
+  width: 100%;
+  margin: 2px 0 4px 40px;
+  padding: 10px 14px;
+  background: var(--dark-3);
+  border: 1px solid var(--line-dark);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 4px;
+}
+.feed-compact .row-detail { margin-left: 36px; }
+.row-detail-line {
+  display: flex;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--dark-ink);
+}
+.row-detail-k { color: var(--ink-2-dark); min-width: 52px; }
+.row-detail-body {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--dark-ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.hexav.clickable { cursor: pointer; }
+.hexav.filtering { background: var(--honey); }
+
 @media (prefers-reduced-motion: no-preference) {
   .row-in { animation: row-in 200ms var(--ease); }
 }

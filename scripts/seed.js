@@ -1,10 +1,10 @@
 // Reset the ledger and replay a clean, believable history of TODAY's real build.
 // Backup for filming only — live data is preferred (docs/DEMO.md: never fake an event on camera).
-// Usage: node scripts/seed.js [url] [nameA] [nameB] [nameC]
+// Usage: node scripts/seed.js [url] [nameA] [nameB] [nameC] [nameD]
 import 'dotenv/config';
 
 const BASE = (process.argv[2] || 'http://localhost:3000').replace(/\/$/, '');
-const [A = 'vihaan', B = 'teammate-b', C = 'teammate-c'] = process.argv.slice(3);
+const [A = 'vihaan', B = 'sriram', C = 'jerry', D = 'tushar'] = process.argv.slice(3);
 const TOKEN = process.env.HIVE_TOKEN || 'change-me-team-secret';
 const H = { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` };
 
@@ -15,7 +15,7 @@ async function post(path, body) {
 }
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
-console.log(`Seeding ${BASE} with agents ${A}, ${B}, ${C} (resets the ledger)`);
+console.log(`Seeding ${BASE} with agents ${A}, ${B}, ${C}, ${D} (resets the ledger)`);
 await post('/api/reset', {});
 
 // The day's real workstream, oldest first. Small pauses keep timestamps ordered.
@@ -29,8 +29,10 @@ const steps = [
   ['share', { agent: B, key: 'decision:dashboard-tokens', title: 'Dashboard uses the DESIGN.md tokens verbatim', body: 'Dark band #141310, feed mono >=14px, verb badges: SHARE filled honey, DEDUPE filled green. No fourth hexagon.' }],
   ['claim', { agent: C, key: 'task:demo-video', title: 'Film and cut the 90s demo' }],
   ['share', { agent: C, key: 'howto:filming', title: 'Filming plan locked', body: 'Phone wide shot + QuickTime screen recordings; beats in docs/DEMO.md; shoot by 3:30pm.' }],
-  // The dedup beat's target: C recalls/claims what A already did.
-  ['claim', { agent: C, key: 'task:server-core', title: 'Build ledger + server core' }],
+  ['claim', { agent: D, key: 'task:readme', title: 'Write the README + submission text' }],
+  ['recall', { agent: D, query: 'setup' }],
+  // The dedup beat's target: D claims what A already did.
+  ['claim', { agent: D, key: 'task:server-core', title: 'Build ledger + server core' }],
 ];
 
 for (const [kind, body] of steps) {

@@ -31,14 +31,15 @@
     hiveTag: $('[data-hive="hivetag"]'),
     counters: {
       agents: $('[data-counter="agents"]'),
-      shared: $('[data-counter="shared"]'),
-      deduped: $('[data-counter="deduped"]')
+      shared: $('[data-counter="shared"]')
     }
   };
 
+  var FILTER = null; // agent name the feed is filtered to (click an avatar in the header)
+
   /* ---------- agent ring colors (stable per agent) ---------- */
 
-  var KNOWN_RINGS = { vihaan: '#E0713F', maya: '#4E9BB9', jay: '#C65D8A' };
+  var KNOWN_RINGS = { vihaan: '#E0713F', sriram: '#4E9BB9', jerry: '#C65D8A', tushar: '#7FA65A' };
   var RING_PALETTE = ['#E0713F', '#4E9BB9', '#C65D8A', '#7FA65A', '#B08D3F', '#5F8F7B'];
 
   function ringColor(name) {
@@ -108,6 +109,43 @@
 
     var li = document.createElement('li');
     li.className = 'feed-row' + (animate && !reducedMotion ? ' row-in' : '');
+    li.setAttribute('data-agent', String(ev.agent || ''));
+    if (FILTER && ev.agent !== FILTER) li.hidden = true;
+
+    // click a row for the full story: body, key, exact time
+    li.addEventListener('click', function () {
+      var open = li.classList.toggle('open');
+      var detail = li.querySelector('.row-detail');
+      if (open && !detail) {
+        detail = document.createElement('div');
+        detail.className = 'row-detail';
+        var lines = [
+          ['agent', ev.agent || '—'],
+          ['action', (ev.verb || '—') + (ev.key ? ' · ' + ev.key : '')],
+          ['at', new Date(ev.ts || Date.now()).toLocaleTimeString()],
+        ];
+        for (var j = 0; j < lines.length; j++) {
+          var dl = document.createElement('div');
+          dl.className = 'row-detail-line';
+          var k = document.createElement('span');
+          k.className = 'row-detail-k';
+          k.textContent = lines[j][0];
+          var v = document.createElement('span');
+          v.textContent = lines[j][1];
+          dl.appendChild(k); dl.appendChild(v);
+          detail.appendChild(dl);
+        }
+        if (ev.body) {
+          var b = document.createElement('p');
+          b.className = 'row-detail-body';
+          b.textContent = ev.body;
+          detail.appendChild(b);
+        }
+        li.appendChild(detail);
+      } else if (detail) {
+        detail.hidden = !open;
+      }
+    });
 
     var active = (Date.now() - (ev.ts || 0)) < ACTIVE_WINDOW_MS;
     li.appendChild(hexAvatar(ev.agent, active));
@@ -198,15 +236,33 @@
     setCounter(el.counters.agents, agentCount);
     setCounter(el.counters.shared,
       serverCounters && serverCounters.shared != null ? serverCounters.shared : derived.shared);
-    setCounter(el.counters.deduped,
-      serverCounters && serverCounters.deduped != null ? serverCounters.deduped : derived.deduped);
+  }
+
+  function applyFilter() {
+    if (!el.feed) return;
+    var rows = el.feed.children;
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].hidden = Boolean(FILTER) && rows[i].getAttribute('data-agent') !== FILTER;
+    }
+    if (el.connLabel && !MOCK) {
+      el.connLabel.textContent = FILTER ? 'showing: ' + FILTER : 'live';
+    }
   }
 
   function renderAvatars() {
     if (!el.avatars) return;
     el.avatars.textContent = '';
     agentList().forEach(function (a) {
-      el.avatars.appendChild(hexAvatar(a.name, a.active));
+      var av = hexAvatar(a.name, a.active);
+      av.classList.add('clickable');
+      if (FILTER === a.name) av.classList.add('filtering');
+      av.title = (FILTER === a.name ? 'Showing only ' : 'Show only ') + a.name + ' — click to toggle';
+      av.addEventListener('click', function () {
+        FILTER = FILTER === a.name ? null : a.name;
+        renderAvatars();
+        applyFilter();
+      });
+      el.avatars.appendChild(av);
     });
   }
 
@@ -302,7 +358,7 @@
 
   /* ---------- mock mode (?mock=1) — no network, plausible events ---------- */
 
-  var MOCK_AGENTS = ['vihaan', 'maya', 'jay'];
+  var MOCK_AGENTS = ['vihaan', 'sriram', 'jerry', 'tushar'];
   var MOCK_POOL = {
     SHARE: [
       ['deploy:server', 'Server deployed to hive.style.dev'],
@@ -326,15 +382,15 @@
     ],
     DEDUPE: [
       ['docs:setup', 'Duplicate prevented — already claimed by vihaan'],
-      ['task:smoke-test', 'Duplicate prevented — already claimed by maya'],
-      ['task:seed-script', 'Duplicate prevented — already claimed by jay']
+      ['task:smoke-test', 'Duplicate prevented — already claimed by sriram'],
+      ['task:seed-script', 'Duplicate prevented — already claimed by jerry']
     ],
     QUEEN: [
       ['status:synthesis', 'Where are we?',
         'Server is live on hive.style.dev with the ledger and MCP endpoint done. ' +
-        'Maya is wiring the dashboard feed against the pinned wire format, and jay ' +
-        'has the README and demo script claimed. One duplicate was prevented on ' +
-        'docs:setup. Next up: the three-laptop integration test.']
+        'Sriram is wiring the dashboard feed against the pinned wire format, jerry ' +
+        'has the README claimed, and tushar owns the demo script. One duplicate was ' +
+        'prevented on docs:setup. Next up: the four-laptop integration test.']
     ]
   };
 
