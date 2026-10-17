@@ -471,6 +471,17 @@ body.dash ::selection { background: var(--honey); color: var(--ink); }
 .hive-tag:empty { display: none; }
 .hive-tag a { color: var(--dark-ink); }
 
+.dash-settings {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-2-dark);
+  text-decoration: none;
+}
+.dash-settings:hover { color: var(--dark-ink); }
+
+.feed-more { padding: 16px 0 4px; }
+.feed-more .btn[disabled] { opacity: 0.55; cursor: default; }
+
 /* ---------- shared: connection + counters ---------- */
 
 .conn {

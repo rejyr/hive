@@ -33,6 +33,8 @@
     refresh: $('[data-hive="refresh"]'),
     hiveTag: $('[data-hive="hivetag"]'),
     work: $('[data-hive="work"]'),
+    more: $('[data-hive="more"]'),
+    settings: $('[data-hive="settings"]'),
     counters: {
       agents: $('[data-counter="agents"]'),
       shared: $('[data-counter="shared"]')
@@ -60,6 +62,8 @@
   var agents = {};               // name -> last event ts
   var lastShare = {};            // name -> latest SHARE event (for the work panel)
   var locked = false;
+  var minId = null;              // oldest event id on the page (for "Show more")
+  var keepAll = false;           // once the user loads history, stop trimming the feed
   var derived = { shared: 0, deduped: 0 };
   var serverCounters = null;     // latest {"type":"counters"} payload
   var queen = null;              // latest QUEEN event
@@ -104,12 +108,13 @@
     return av;
   }
 
-  function addEventRow(ev, animate) {
+  function addEventRow(ev, animate, toBottom) {
     if (!ev) return;
     var id = ev.id != null ? ev.id
       : (ev.ts || 0) + ':' + ev.agent + ':' + ev.verb + ':' + (ev.key || '');
     if (seen[id]) return;
     seen[id] = true;
+    if (ev.id != null && (minId === null || ev.id < minId)) minId = ev.id;
     trackEvent(ev);
     if (!el.feed) return;
 
@@ -181,9 +186,13 @@
     time.textContent = relTime(ev.ts || Date.now());
     li.appendChild(time);
 
-    el.feed.insertBefore(li, el.feed.firstChild);
-    while (el.feed.children.length > MAX_ROWS) {
-      el.feed.removeChild(el.feed.lastChild);
+    if (toBottom) {
+      el.feed.appendChild(li);
+    } else {
+      el.feed.insertBefore(li, el.feed.firstChild);
+      while (!keepAll && el.feed.children.length > MAX_ROWS) {
+        el.feed.removeChild(el.feed.lastChild);
+      }
     }
     if (el.empty) el.empty.hidden = true;
   }
@@ -516,6 +525,33 @@
   }
 
   /* ---------- boot ---------- */
+
+  // "Show more": page back through the whole history; live rows keep arriving on top.
+  if (el.more) {
+    if (MOCK) el.more.hidden = true;
+    el.more.addEventListener('click', function () {
+      keepAll = true;
+      var url = '/api/events?limit=25&' + QS + (minId !== null ? '&before=' + minId : '');
+      fetch(url)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (list) {
+          if (!list) return;
+          // list arrives oldest-first; append newest-of-batch first so the feed
+          // stays in descending order top to bottom
+          for (var i = list.length - 1; i >= 0; i--) addEventRow(list[i], false, true);
+          if (list.length < 25) {
+            el.more.textContent = 'That’s the whole history';
+            el.more.disabled = true;
+          }
+        })
+        .catch(function () {});
+    });
+  }
+
+  if (el.settings && TOKEN && !MOCK) {
+    el.settings.href = '/settings?token=' + encodeURIComponent(TOKEN);
+    el.settings.hidden = false;
+  }
 
   if (el.refresh) {
     el.refresh.addEventListener('click', function () {

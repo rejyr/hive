@@ -159,6 +159,7 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
   );
   const latestQueenStmt = db.prepare("SELECT * FROM events WHERE hive = ? AND verb = 'QUEEN' ORDER BY id DESC LIMIT 1");
   const recentEventsStmt = db.prepare('SELECT * FROM events WHERE hive = ? ORDER BY id DESC LIMIT ?');
+  const eventsBeforeStmt = db.prepare('SELECT * FROM events WHERE hive = ? AND id < ? ORDER BY id DESC LIMIT ?');
   const upsertHive = db.prepare(`
     INSERT INTO hives (name, repo, ts) VALUES (?, ?, ?)
     ON CONFLICT(name) DO UPDATE SET repo=COALESCE(excluded.repo, hives.repo)
@@ -245,7 +246,25 @@ export function openLedger(dbPath = process.env.HIVE_DB_PATH || './hive.db') {
     },
     members: (hive) => membersOf.all(hive).map((m) => m.tag),
     latestQueen: (hive = 'default') => latestQueenStmt.get(hive) || null,
-    recentEvents: (limit = 50, hive = 'default') => recentEventsStmt.all(hive, Math.min(limit, 200)).reverse(),
+    recentEvents: (limit = 50, hive = 'default', before = 0) =>
+      (before > 0
+        ? eventsBeforeStmt.all(hive, before, Math.min(limit, 200))
+        : recentEventsStmt.all(hive, Math.min(limit, 200))
+      ).reverse(),
+    // Rename a hive everywhere; the token stays the stable key.
+    renameHive: (oldName, newName) => {
+      const n = sanitizeName(newName, '');
+      if (!n) return { error: 'name required' };
+      if (n === oldName) return { name: n };
+      if (hiveByName.get(n)) return { error: `"${n}" is taken` };
+      db.transaction(() => {
+        db.prepare('UPDATE hives SET name = ? WHERE name = ?').run(n, oldName);
+        for (const t of ['events', 'memories', 'claims', 'members']) {
+          db.prepare(`UPDATE ${t} SET hive = ? WHERE hive = ?`).run(n, oldName);
+        }
+      })();
+      return { name: n };
+    },
     setOnEvent: (fn) => { onEvent = fn; },
     reset: (hive = 'default') => {
       db.prepare('DELETE FROM events WHERE hive = ?').run(hive);

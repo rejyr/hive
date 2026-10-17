@@ -42,7 +42,7 @@ app.get('/health', (c) => c.json({ ok: true, ts: Date.now() }));
 app.get('/api/events', (c) => {
   const hive = readHive(c);
   if (!hive) return c.json({ error: 'token required for this hive' }, 401);
-  return c.json(ledger.recentEvents(Number(c.req.query('limit')) || 50, hive));
+  return c.json(ledger.recentEvents(Number(c.req.query('limit')) || 50, hive, Number(c.req.query('before')) || 0));
 });
 app.get('/api/status', (c) => {
   const hive = readHive(c);
@@ -64,11 +64,17 @@ app.post('/api/agents', async (c) => {
   if (!hive) return c.json({ error: 'valid token required' }, 401);
   return c.json({ hive, ...ledger.claimTag(hive, tag) });
 });
-// Link a repo to the token's hive.
+// Hive settings: link a repo, rename the hive (token stays the key).
 app.post('/api/hives', async (c) => {
-  const { repo, hive: bodyHive } = await c.req.json().catch(() => ({}));
-  const hive = writeHive(c, bodyHive);
+  const { repo, rename, hive: bodyHive } = await c.req.json().catch(() => ({}));
+  let hive = writeHive(c, bodyHive);
   if (!hive) return c.json({ error: 'valid token required' }, 401);
+  if (rename) {
+    if (hive === 'default') return c.json({ error: 'the demo hive cannot be renamed' }, 400);
+    const r = ledger.renameHive(hive, rename);
+    if (r.error) return c.json(r, 400);
+    hive = r.name;
+  }
   const repoUrl = typeof repo === 'string' && /^https?:\/\/\S{1,200}$/.test(repo) ? repo : null;
   return c.json(ledger.registerHive(hive, repoUrl));
 });
@@ -117,6 +123,7 @@ app.post('/api/reset', async (c) => {
 
 app.get('/live', serveStatic({ path: './public/live.html' }));
 app.get('/start', serveStatic({ path: './public/start.html' }));
+app.get('/settings', serveStatic({ path: './public/settings.html' }));
 // Explicit text types — serveStatic ships unknown extensions as octet-stream,
 // which agents reading these files reject as "binary data".
 app.get('/setup.md', (c) => c.text(readFileSync('./public/setup.md', 'utf8'), 200, { 'content-type': 'text/markdown; charset=utf-8' }));
