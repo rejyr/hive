@@ -1,0 +1,19 @@
+{
+  "name": "hive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@modelcontextprotocol/sdk": "^1.19.1",
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^16.4.7",
+    "hono": "^4.6.14",
+    "ws": "^8.18.0",
+    "zod": "^3.25.76"
+  }
+}
