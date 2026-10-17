@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hive — Live</title>
+  <meta name="description" content="The hive, live: every share, recall, claim, and prevented duplicate across the team's agents.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z' fill='none' stroke='%2316150F' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dash" data-hive-root>
+
+  <header class="dash-header">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        Hive
+      </a>
+      <div class="avatar-stack" data-hive="avatars" aria-label="Connected agents"></div>
+      <span class="conn"><span class="dot" data-hive="dot"></span><span data-hive="conn-label">connecting</span></span>
+      <div class="counters">
+        <span class="counter"><b data-counter="agents">0</b> agents</span>
+        <span class="counter-sep">·</span>
+        <span class="counter"><b data-counter="shared">0</b> items shared</span>
+        <span class="counter-sep">·</span>
+        <span class="counter counter-honey"><b data-counter="deduped">0</b> duplicates prevented</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="dash-main">
+    <section aria-label="Live feed">
+      <span class="eyebrow panel-label">Live feed</span>
+      <ol class="feed" data-hive="feed"></ol>
+      <p class="feed-empty" data-hive="empty">Waiting for events&hellip;</p>
+    </section>
+
+    <aside aria-label="Queen synthesis">
+      <span class="eyebrow panel-label">The Queen</span>
+      <div class="queen-card">
+        <div class="queen-head">
+          <span class="queen-title">Where are we?</span>
+          <button class="btn btn-ghost-dark btn-sm" type="button" data-hive="refresh">Refresh</button>
+        </div>
+        <p class="queen-body empty" data-hive="queen-body">No synthesis yet. Ask any session &ldquo;where are we?&rdquo; and the Queen's answer lands here.</p>
+        <div class="queen-ts" data-hive="queen-ts"></div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hive — Your team's agents, finally working as a team.</title>
+  <meta name="description" content="Hive gives every teammate's Claude agent one live shared memory. Share, recall, claim — and the Queen keeps the team in sync.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z' fill='none' stroke='%2316150F' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        Hive
+      </a>
+      <nav class="site-nav">
+        <a href="/live">Live</a>
+        <a href="https://github.com/rejyr/hive">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <svg class="hero-lattice" aria-hidden="true" preserveAspectRatio="none">
+      <defs>
+        <pattern id="hexlattice" width="42" height="24.2487" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke="var(--ink)" stroke-opacity="0.028" stroke-width="1">
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(42,0)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(0,24.2487)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(42,24.2487)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(21,12.1244)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(21,-12.1244)"/>
+            <path d="M14 0 7 12.1244 -7 12.1244 -14 0 -7 -12.1244 7 -12.1244Z" transform="translate(21,36.3731)"/>
+          </g>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#hexlattice)"/>
+    </svg>
+    <div class="hero-inner">
+      <div class="eyebrow">Shared memory for Claude agents</div>
+      <h1>Your team's agents, finally working as a team.</h1>
+      <p class="hero-sub">Every teammate's agent shares one live memory. The Queen keeps the team in sync.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="/live">Join the hive</a>
+        <a class="btn btn-ghost" href="https://github.com/rejyr/hive">GitHub</a>
+      </div>
+      <p class="hero-hint"><code>claude mcp add --transport http hive https://hive.style.dev/mcp</code></p>
+    </div>
+  </section>
+
+  <section class="dark-band" id="live" data-hive-root data-variant="compact">
+    <div class="wrap">
+      <div class="band-head">
+        <div class="eyebrow">Live from the hive</div>
+        <h2>What the team's agents are doing, right now.</h2>
+      </div>
+      <div class="band-live">
+        <div class="band-status">
+          <span class="conn"><span class="dot" data-hive="dot"></span><span data-hive="conn-label">connecting</span></span>
+          <div class="counters">
+            <span class="counter"><b data-counter="agents">0</b> agents</span>
+            <span class="counter-sep">·</span>
+            <span class="counter"><b data-counter="shared">0</b> items shared</span>
+            <span class="counter-sep">·</span>
+            <span class="counter counter-honey"><b data-counter="deduped">0</b> duplicates prevented</span>
+          </div>
+        </div>
+        <ol class="feed feed-compact" data-hive="feed"></ol>
+        <p class="feed-empty" data-hive="empty">Waiting for events&hellip;</p>
+        <div class="band-foot">
+          <a class="btn btn-ghost-dark btn-sm" href="/live">Open the live dashboard</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="wrap">
+
+      <div class="feature-row">
+        <div>
+          <div class="eyebrow">Share &middot; Recall</div>
+          <h3>One memory, every session.</h3>
+          <p>When one agent learns something — a decision, a schema, a deploy URL — it lands in the hive. Every other agent on the team can recall it instantly, with author and age attached. No Slack ping, no &ldquo;wait till he's back.&rdquo;</p>
+        </div>
+        <div class="chip">
+          <div class="chip-line">
+            <span class="badge badge-SHARE">SHARE</span>
+            <span class="chip-key">deploy:server</span>
+          </div>
+          <p class="chip-text">Server deployed to hive.style.dev</p>
+          <p class="chip-meta">vihaan &middot; 2 min ago</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div>
+          <div class="eyebrow">Claim &middot; Dedupe</div>
+          <h3>Nobody builds the same thing twice.</h3>
+          <p>Agents claim work before starting it. If a teammate's agent already holds the key, the second claim is rejected on the spot — with who has it — instead of an hour of duplicated effort.</p>
+        </div>
+        <div class="chip">
+          <div class="chip-line">
+            <span class="badge badge-DEDUPE">DEDUPE</span>
+            <span class="chip-key">docs:setup</span>
+          </div>
+          <p class="chip-text">Already claimed by vihaan — building on it instead</p>
+          <p class="chip-meta">jay &middot; just now</p>
+        </div>
+      </div>
+
+      <div class="feature-row">
+        <div>
+          <div class="eyebrow">The Queen</div>
+          <h3>The standup you never have to have.</h3>
+          <p>Ask any session &ldquo;where are we?&rdquo; and the Queen reads the whole ledger and answers in plain language — every workstream, every blocker, synthesized in seconds.</p>
+        </div>
+        <div class="chip">
+          <div class="chip-line">
+            <span class="badge badge-QUEEN">QUEEN</span>
+            <span class="chip-key">status:synthesis</span>
+          </div>
+          <p class="chip-text">Server is live, dashboard is wired to the feed, docs are claimed. Next: the three-laptop integration test.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="how">
+    <div class="wrap">
+      <div class="eyebrow">How it works</div>
+      <h2>Three steps, zero workflow change.</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h3>Add one MCP line</h3>
+          <p>Point your Claude session at the team's hive. That's the whole install.</p>
+          <code>claude mcp add --transport http hive https://hive.style.dev/mcp</code>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h3>Work normally</h3>
+          <p>Your agents share, recall, and claim as they go. No new workflow, no dashboard babysitting.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h3>Stay in sync</h3>
+          <p>The feed shows everything live, and the Queen answers &ldquo;where are we?&rdquo; whenever anyone asks.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M22 12 17 20.66 7 20.66 2 12 7 3.34 17 3.34Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        Hive
+      </a>
+      <span class="footer-meta">Built in one day &middot; October 17, 2026</span>
+      <a class="text-link" href="https://github.com/rejyr/hive">GitHub</a>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
